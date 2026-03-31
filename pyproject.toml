@@ -21,16 +21,16 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering",
 ]
-urls = {
-  Homepage = "https://github.com/brenickra/fdscore",
-  Repository = "https://github.com/brenickra/fdscore",
-  Issues = "https://github.com/brenickra/fdscore/issues"
-}
 dependencies = [
   "numpy>=1.24",
   "scipy>=1.10",
   "numba>=0.58"
 ]
+
+[project.urls]
+Homepage = "https://github.com/brenickra/fdscore"
+Repository = "https://github.com/brenickra/fdscore"
+Issues = "https://github.com/brenickra/fdscore/issues"
 
 [project.optional-dependencies]
 spectral = [
