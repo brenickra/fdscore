@@ -1,0 +1,207 @@
+from __future__ import annotations
+
+import numpy as np
+
+from .types import SNParams, SDOFParams, FDSResult, FDSTimePlan
+from .grid import build_frequency_grid
+from .validate import ValidationError, validate_sn, validate_sdof, validate_nyquist, compat_dict
+from .preprocess import preprocess_signal
+from .sdof_transfer import build_transfer_matrix
+from .rainflow_damage import miner_damage_from_matrix
+
+
+def _fds_from_signal_fft(
+    y: np.ndarray,
+    *,
+    fs: float,
+    f0: np.ndarray,
+    zeta: float,
+    metric: str,
+    k: float,
+    c: float,
+    p_scale: float,
+    batch_size: int = 64,
+    amplitude_from_range: bool = True,
+    H: np.ndarray | None = None,
+) -> np.ndarray:
+    y = np.asarray(y, dtype=float)
+    n = int(y.size)
+    yf = np.fft.rfft(y)
+
+    if H is None:
+        H = build_transfer_matrix(fs=float(fs), n=n, f0_hz=f0, zeta=float(zeta), metric=metric)  # type: ignore[arg-type]
+
+    out = np.zeros(H.shape[0], dtype=float)
+    bs = max(1, int(batch_size))
+
+    for i0 in range(0, H.shape[0], bs):
+        i1 = min(i0 + bs, H.shape[0])
+        resp = np.fft.irfft(H[i0:i1] * yf[None, :], n=n, axis=1)
+        resp *= float(p_scale)
+
+        dmg_batch = miner_damage_from_matrix(
+            resp,
+            k=float(k),
+            c=float(c),
+            amplitude_from_range=bool(amplitude_from_range),
+        )
+        out[i0:i1] = np.asarray(dmg_batch, dtype=float)
+
+    return out
+
+
+def prepare_fds_time_plan(
+    *,
+    fs: float,
+    n_samples: int,
+    sdof: SDOFParams,
+    strict_nyquist: bool = True,
+) -> FDSTimePlan:
+    """Precompute and store transfer data for repeated `compute_fds_time` calls."""
+    validate_sdof(sdof)
+
+    if sdof.metric not in ("pv", "disp", "vel", "acc"):
+        raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
+    if not np.isfinite(fs) or float(fs) <= 0:
+        raise ValidationError("fs must be finite and > 0.")
+    if not isinstance(n_samples, int) or n_samples < 4:
+        raise ValidationError("n_samples must be an int >= 4.")
+
+    f0 = build_frequency_grid(sdof)
+    f0 = validate_nyquist(f0, fs=float(fs), strict=bool(strict_nyquist))
+    zeta = 1.0 / (2.0 * float(sdof.q))
+
+    H = build_transfer_matrix(
+        fs=float(fs),
+        n=int(n_samples),
+        f0_hz=f0,
+        zeta=float(zeta),
+        metric=sdof.metric,
+    )
+    return FDSTimePlan(
+        fs=float(fs),
+        n_samples=int(n_samples),
+        f=np.asarray(f0, dtype=float),
+        zeta=float(zeta),
+        metric=sdof.metric,
+        H=np.asarray(H),
+    )
+
+
+def _validate_plan_compatibility(
+    *,
+    plan: FDSTimePlan,
+    fs: float,
+    n_samples: int,
+    f0: np.ndarray,
+    zeta: float,
+    metric: str,
+) -> np.ndarray:
+    if not isinstance(plan, FDSTimePlan):
+        raise ValidationError("plan must be an instance of FDSTimePlan.")
+
+    if int(plan.n_samples) != int(n_samples):
+        raise ValidationError(f"FDSTimePlan.n_samples mismatch: plan={plan.n_samples}, input={n_samples}")
+    if str(plan.metric) != str(metric):
+        raise ValidationError(f"FDSTimePlan.metric mismatch: plan={plan.metric}, input={metric}")
+
+    if not np.isclose(float(plan.fs), float(fs), rtol=0.0, atol=1e-12):
+        raise ValidationError(f"FDSTimePlan.fs mismatch: plan={plan.fs}, input={fs}")
+    if not np.isclose(float(plan.zeta), float(zeta), rtol=0.0, atol=1e-15):
+        raise ValidationError(f"FDSTimePlan.zeta mismatch: plan={plan.zeta}, input={zeta}")
+
+    f_plan = np.asarray(plan.f, dtype=float)
+    if f_plan.shape != f0.shape or not np.allclose(f_plan, f0, rtol=0.0, atol=1e-12):
+        raise ValidationError("FDSTimePlan frequency grid mismatch with provided sdof/fs.")
+
+    h = np.asarray(plan.H)
+    n_bins = int(np.fft.rfftfreq(int(n_samples), d=1.0 / float(fs)).size)
+    if h.shape != (f0.size, n_bins):
+        raise ValidationError(
+            "FDSTimePlan.H has unexpected shape. "
+            f"Expected {(f0.size, n_bins)}, got {h.shape}."
+        )
+    return h
+
+
+def compute_fds_time(
+    x: np.ndarray,
+    fs: float,
+    sn: SNParams,
+    sdof: SDOFParams,
+    *,
+    p_scale: float = 6500.0,
+    detrend: str = "linear",
+    strict_nyquist: bool = True,
+    batch_size: int = 64,
+    plan: FDSTimePlan | None = None,
+) -> FDSResult:
+    """Compute time-domain FDS (Miner damage spectrum) for SDOF responses.
+
+    The result embeds a compatibility signature in `meta["compat"]`
+    and accepts an optional precomputed transfer `plan` for repeated calls.
+    """
+    validate_sn(sn)
+    validate_sdof(sdof)
+
+    if sdof.metric not in ("pv", "disp", "vel", "acc"):
+        raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
+
+    if not np.isfinite(p_scale) or p_scale <= 0:
+        raise ValidationError("p_scale must be finite and > 0.")
+    if detrend not in ("linear", "mean", "none"):
+        raise ValidationError("detrend must be one of: 'linear', 'mean', 'none'.")
+    if not isinstance(batch_size, int) or batch_size <= 0:
+        raise ValidationError("batch_size must be an int > 0.")
+
+    x = np.asarray(x, dtype=float)
+    if x.ndim != 1 or x.size < 4:
+        raise ValidationError("x must be a 1D array with length >= 4.")
+    if not np.all(np.isfinite(x)):
+        raise ValidationError("x must contain only finite values.")
+
+    f0 = build_frequency_grid(sdof)
+    f0 = validate_nyquist(f0, fs=float(fs), strict=strict_nyquist)
+
+    zeta = 1.0 / (2.0 * float(sdof.q))
+    k = float(sn.slope_k)
+    c = float(sn.ref_cycles) * (float(sn.ref_stress) ** k)
+
+    y = preprocess_signal(x, mode=detrend)
+
+    if plan is None:
+        H = build_transfer_matrix(fs=float(fs), n=int(y.size), f0_hz=f0, zeta=float(zeta), metric=sdof.metric)  # type: ignore[arg-type]
+    else:
+        H = _validate_plan_compatibility(
+            plan=plan,
+            fs=float(fs),
+            n_samples=int(y.size),
+            f0=f0,
+            zeta=float(zeta),
+            metric=sdof.metric,
+        )
+
+    damage = _fds_from_signal_fft(
+        y,
+        fs=float(fs),
+        f0=f0,
+        zeta=float(zeta),
+        metric=sdof.metric,
+        k=float(k),
+        c=float(c),
+        p_scale=float(p_scale),
+        batch_size=int(batch_size),
+        amplitude_from_range=bool(sn.amplitude_from_range),
+        H=H,
+    )
+
+    meta = {
+        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale, f=f0, engine="time_rainflow_fft_numba"),
+        "provenance": {
+            "source": "compute_fds_time",
+            "detrend": detrend,
+            "batch_size": int(batch_size),
+            "transfer_plan": bool(plan is not None),
+        },
+    }
+    return FDSResult(f=f0, damage=damage, meta=meta)
