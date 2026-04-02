@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.0
 - Added `SNParams.normalized(...)` for explicit normalized workflows (`k` with unit references)
 - Updated `SNParams` defaults to `ref_stress=1` and `ref_cycles=1`, making `SNParams(slope_k=...)` a normalized definition by default
 - Removed the implicit legacy `p_scale=6500` behavior from public FDS APIs
