@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.2
 - Added runnable minimal workflow examples under `examples/` for time-domain FDS, spectral FDS, and closed-form inversion with PSD metrics
 
 ## 0.2.1
