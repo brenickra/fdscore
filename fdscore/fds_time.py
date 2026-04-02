@@ -4,7 +4,7 @@ import numpy as np
 
 from .types import SNParams, SDOFParams, FDSResult, FDSTimePlan
 from .grid import build_frequency_grid
-from .validate import ValidationError, validate_sn, validate_sdof, validate_nyquist, compat_dict
+from .validate import ValidationError, validate_sn, validate_sdof, validate_nyquist, compat_dict, resolve_p_scale
 from .preprocess import preprocess_signal
 from .sdof_transfer import build_transfer_matrix
 from .rainflow_damage import miner_damage_from_matrix
@@ -130,7 +130,7 @@ def compute_fds_time(
     sn: SNParams,
     sdof: SDOFParams,
     *,
-    p_scale: float = 6500.0,
+    p_scale: float | None = None,
     detrend: str = "linear",
     strict_nyquist: bool = True,
     batch_size: int = 64,
@@ -140,6 +140,23 @@ def compute_fds_time(
 
     The result embeds a compatibility signature in `meta["compat"]`
     and accepts an optional precomputed transfer `plan` for repeated calls.
+
+    Notes
+    -----
+    `p_scale` multiplies the oscillator response before rainflow/Miner damage
+    counting. For fixed `slope_k`, the absolute damage level scales globally with:
+
+        p_scale**k / (ref_cycles * ref_stress**k)
+
+    As a consequence:
+    - `p_scale`, `ref_stress`, and `ref_cycles` change the magnitude of `damage(f)`
+      but not its shape.
+    - When only relative FDS shape and equivalent inverted PSD are of interest,
+      use `SNParams.normalized(...)` together with `p_scale=1.0`.
+
+    If `p_scale` is omitted, `p_scale=1.0` is assumed only for normalized S-N
+    parameters (`ref_stress=1`, `ref_cycles=1`). Physical S-N workflows must pass
+    `p_scale` explicitly.
     """
     validate_sn(sn)
     validate_sdof(sdof)
@@ -147,8 +164,7 @@ def compute_fds_time(
     if sdof.metric not in ("pv", "disp", "vel", "acc"):
         raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
 
-    if not np.isfinite(p_scale) or p_scale <= 0:
-        raise ValidationError("p_scale must be finite and > 0.")
+    p_scale_resolved = resolve_p_scale(p_scale=p_scale, sn=sn)
     if detrend not in ("linear", "mean", "none"):
         raise ValidationError("detrend must be one of: 'linear', 'mean', 'none'.")
     if not isinstance(batch_size, int) or batch_size <= 0:
@@ -189,14 +205,14 @@ def compute_fds_time(
         metric=sdof.metric,
         k=float(k),
         c=float(c),
-        p_scale=float(p_scale),
+        p_scale=float(p_scale_resolved),
         batch_size=int(batch_size),
         amplitude_from_range=bool(sn.amplitude_from_range),
         H=H,
     )
 
     meta = {
-        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale, f=f0, engine="time_rainflow_fft_numba"),
+        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, f=f0, engine="time_rainflow_fft_numba"),
         "provenance": {
             "source": "compute_fds_time",
             "detrend": detrend,

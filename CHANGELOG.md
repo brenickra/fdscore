@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+- Added `SNParams.normalized(...)` for explicit normalized workflows (`k` with unit references)
+- Updated `SNParams` defaults to `ref_stress=1` and `ref_cycles=1`, making `SNParams(slope_k=...)` a normalized definition by default
+- Removed the implicit legacy `p_scale=6500` behavior from public FDS APIs
+- `compute_fds_time(...)` and `compute_fds_spectral_*` now assume `p_scale=1` only for normalized S-N definitions and require explicit `p_scale` for physical S-N workflows
+- Clarified the role of `p_scale`, `ref_stress`, and `ref_cycles` in README, contracts, and public docstrings
+- Documented that global damage scaling affects FDS magnitude but not the equivalent inverted PSD in compatible workflows
+
 ## 0.1.12
 - Prepared repository metadata for public release
 - Added root `.gitignore` and MIT `LICENSE`

@@ -96,6 +96,13 @@ def invert_fds_closed_form(
     - `fds.meta['compat']` must exist and include: metric, q, p_scale, sn
     - metric must be `'pv'`
     - `test_duration_s` must be provided
+
+    Notes
+    -----
+    When the target FDS was computed with compatible settings, the global damage
+    scaling carried by `p_scale`, `ref_stress`, and `ref_cycles` cancels in the
+    closed-form inversion. Those parameters affect absolute FDS magnitude, but not
+    the equivalent inverted PSD.
     """
     if not np.isfinite(test_duration_s) or float(test_duration_s) <= 0:
         raise ValidationError("test_duration_s must be finite and > 0.")

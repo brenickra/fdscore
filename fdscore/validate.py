@@ -17,6 +17,23 @@ def validate_sn(sn: SNParams) -> None:
         raise ValidationError("SNParams.ref_cycles must be finite and > 0.")
 
 
+def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
+    """Resolve p_scale under the normalized-vs-physical workflow contract."""
+    if p_scale is not None:
+        val = float(p_scale)
+        if not np.isfinite(val) or val <= 0.0:
+            raise ValidationError("p_scale must be finite and > 0.")
+        return val
+
+    if float(sn.ref_stress) == 1.0 and float(sn.ref_cycles) == 1.0:
+        return 1.0
+
+    raise ValidationError(
+        "p_scale must be provided explicitly when using non-unit SN reference values. "
+        "Use normalized SN parameters (ref_stress=1, ref_cycles=1) to rely on the default p_scale=1."
+    )
+
+
 def validate_frequency_vector(f: np.ndarray) -> None:
     if f.ndim != 1:
         raise ValidationError("Frequency vector f must be 1D.")

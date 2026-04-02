@@ -18,11 +18,43 @@ class SNParams:
     - amplitude_from_range:
         If True, interpret rainflow `range` as 2*amplitude (amplitude = range/2).
         Must be consistent across FDS compute and inversion assumptions.
+
+    Notes
+    -----
+    Two usage modes are common:
+
+    - Physical: provide `ref_stress`, `ref_cycles`, and an application-specific `p_scale`
+      when absolute damage magnitude matters.
+    - Normalized: use :meth:`SNParams.normalized` together with `p_scale=1.0`
+      when only the relative FDS shape and the equivalent inverted PSD matter.
     """
     slope_k: float
-    ref_stress: float
-    ref_cycles: float
+    ref_stress: float = 1.0
+    ref_cycles: float = 1.0
     amplitude_from_range: bool = True
+
+    @classmethod
+    def normalized(
+        cls,
+        *,
+        slope_k: float,
+        amplitude_from_range: bool = True,
+    ) -> "SNParams":
+        """Return a normalized S-N definition with unit reference values.
+
+        The normalized convention uses:
+        - `ref_stress = 1.0`
+        - `ref_cycles = 1.0`
+
+        This is useful when the workflow is focused on FDS shape and FDS-to-PSD
+        inversion, rather than absolute Miner damage magnitude.
+        """
+        return cls(
+            slope_k=float(slope_k),
+            ref_stress=1.0,
+            ref_cycles=1.0,
+            amplitude_from_range=bool(amplitude_from_range),
+        )
 
     def C(self) -> float:
         """Return C = N_ref * S_ref^k."""

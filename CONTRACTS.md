@@ -18,6 +18,16 @@ Fields
   - `True` (default): rainflow range is interpreted as `2*amplitude`.
   - `False`: rainflow range is interpreted as amplitude directly.
 
+Factory helpers
+- `SNParams.normalized(slope_k, amplitude_from_range=True)`:
+  returns a normalized S-N definition with `ref_stress=1` and `ref_cycles=1`.
+  Use this together with `p_scale=1.0` when only relative FDS shape and equivalent
+  PSD inversion are of interest.
+
+Defaults
+- `SNParams(slope_k=...)` is itself a normalized definition because
+  `ref_stress=1` and `ref_cycles=1` by default.
+
 Derived constant
 - `C = ref_cycles * ref_stress**slope_k`
 
@@ -78,6 +88,8 @@ Input
 - `fs`: sampling rate [Hz] (finite, >0).
 - `sn`, `sdof`: parameter objects.
 - `p_scale`: scale applied to response time series before damage counting.
+  For fixed `slope_k`, the absolute damage level scales globally with
+  `p_scale**k / (ref_cycles * ref_stress**k)`.
 - `detrend`: `"linear"|"mean"|"none"` applied to `x`.
 - `batch_size`: number of oscillators per FFT batch.
 - `plan` (optional): `FDSTimePlan` built by `prepare_fds_time_plan(...)`.
@@ -88,6 +100,16 @@ Validation
 
 Output
 - Miner damage spectrum `damage(f)` plus a `compat` signature embedding `metric`, `q`, `p_scale`, and S-N parameters.
+
+Usage notes
+- Normalized workflow:
+  - `sn = SNParams(slope_k=...)` or `SNParams.normalized(slope_k=...)`
+  - omit `p_scale` or pass `p_scale = 1.0`
+- Physical workflow:
+  - use explicit `ref_stress`, `ref_cycles`, and application-specific `p_scale`
+- If `p_scale` is omitted, `fdscore` assumes `p_scale=1.0` only for normalized
+  S-N definitions (`ref_stress=1`, `ref_cycles=1`).
+- If non-unit S-N references are provided, `p_scale` must be passed explicitly.
 
 ### `prepare_fds_time_plan(fs, n_samples, sdof, ...) -> FDSTimePlan`
 Precomputes and stores transfer data for repeated `compute_fds_time` calls that share
@@ -129,6 +151,10 @@ Requirements
 Output
 - `PSDResult` with reconstruction diagnostics in `meta["reconstruction"]`.
 
+Interpretation
+- In a compatible workflow, `p_scale`, `ref_stress`, and `ref_cycles` cancel in the
+  closed-form inversion. They affect absolute FDS magnitude, but not the equivalent PSD.
+
 ## Available inversion engines
 
 ### Iterative inversion (spectral)
@@ -139,6 +165,17 @@ Output
 ### Iterative inversion (time-domain)
 - `invert_fds_iterative_time(...)`: synthesizes acceleration PSD by matching a target FDS using random-phase time synthesis and `compute_fds_time`.
 - Supports optional target-duration scaling through `target_duration_s`.
+
+## Method assumptions and limits
+
+- `synthesize_time_from_psd(...)` generates stationary Gaussian time histories through
+  random-phase IFFT. It is a numerical synthesis helper, not a general representation
+  of arbitrary measured vibration signals.
+- Spectral FDS uses Dirlik through `FLife`; it is not the same method as time-domain
+  rainflow counting and can produce different absolute FDS levels.
+- Closed-form inversion is supported only for `metric="pv"`.
+- `FDSTimePlan` stores the full complex transfer matrix `H` with shape
+  `(len(f), n_fft_bins)`. This improves reuse performance at the cost of memory.
 
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
