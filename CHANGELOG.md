@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Factored shared smoothing, blending, and taper helpers out of the iterative inversion engines into a common internal module
+- Documented per-engine `IterativeInversionParams` usage and exposed it in `PSDResult.meta["param_usage"]`
 
 ## 0.2.0
 - Added `SNParams.normalized(...)` for explicit normalized workflows (`k` with unit references)

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from ._inversion_utils import apply_edge_caps, blend_log_curves, build_edge_taper_weights, smooth_psd_log10
+from ._inversion_utils import (
+    apply_edge_caps,
+    blend_log_curves,
+    build_edge_taper_weights,
+    iterative_param_usage,
+    smooth_psd_log10,
+)
 from .types import FDSResult, PSDResult, IterativeInversionParams, SDOFParams, SNParams
 from .validate import ValidationError, ensure_compat_inversion
 from .sdof_transfer import build_transfer_psd
@@ -46,6 +52,8 @@ def invert_fds_iterative_spectral(
     PSDResult
         `psd` is the synthesized acceleration PSD on `f_psd_hz`.
         `meta["diagnostics"]` includes best error and per-iteration history.
+        `meta["param_usage"]` records which `IterativeInversionParams` fields are
+        used by the spectral engine.
     """
     # Validate core inputs
     if not np.isfinite(duration_s) or float(duration_s) <= 0:
@@ -226,6 +234,7 @@ def invert_fds_iterative_spectral(
             "best_recon_fds": Ffin,
             "iters": int(params.iters),
         },
+        "param_usage": iterative_param_usage(engine="spectral", params=params),
         "compat": target.meta.get("compat", {}),
         "provenance": {"source": "invert_fds_iterative_spectral"},
     }

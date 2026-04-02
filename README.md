@@ -92,6 +92,19 @@ print(metrics.rms_acc_g, metrics.peak_acc_g, metrics.band_rms_g)
 
 `compute_psd_metrics(...)` requires an explicit acceleration unit through `acc_unit` or `acc_to_m_s2`.
 
+## Iterative inversion parameter usage
+
+Both iterative inversion engines share the same `IterativeInversionParams` dataclass, but
+they do not consume exactly the same subset of fields.
+
+- `invert_fds_iterative_spectral(...)` uses the full regularization set, including tail caps
+  and optional post-smooth/post-refine stages.
+- `invert_fds_iterative_time(...)` uses the common update, smoothing, and prior controls, but
+  currently ignores tail caps and post-processing/refine fields.
+
+Each inversion result exposes `meta["param_usage"]` so callers can inspect which fields were
+used and which were ignored by the selected engine.
+
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.

@@ -150,6 +150,21 @@ class IterativeInversionParams:
     """Configuration parameters for iterative PSD inversion.
 
     Use `meta["diagnostics"]` returned by inversion functions to track convergence.
+
+    Parameter usage is not fully symmetric across engines:
+
+    - Common fields used by both iterative engines:
+      `iters`, `gamma`, `gain_min`, `gain_max`, `alpha_sharpness`,
+      `floor`, `smooth_enabled`, `smooth_window_bins`, `smooth_every_n_iters`,
+      `prior_blend`, `prior_power`, `edge_anchor_hz`, `edge_anchor_blend`.
+    - Spectral-only fields:
+      `tail_cap_start_hz`, `tail_cap_ratio`, `low_cap_ratio`,
+      `post_smooth_window_bins`, `post_smooth_blend`,
+      `post_refine_iters`, `post_refine_gamma`,
+      `post_refine_min`, `post_refine_max`.
+
+    The time-domain iterative engine currently ignores the spectral-only subset.
+    Returned `PSDResult.meta["param_usage"]` makes the per-engine usage explicit.
     """
 
     iters: int = 30

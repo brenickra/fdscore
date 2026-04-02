@@ -160,11 +160,26 @@ Interpretation
 ### Iterative inversion (spectral)
 - `invert_fds_iterative_spectral(...)`: synthesizes acceleration PSD by matching a target FDS using a spectral Dirlik predictor.
 - Requires `FLife`.
-- Regularization options are defined in `IterativeInversionParams`.
+- Uses the full `IterativeInversionParams` set, including:
+  - core update/smoothing/prior knobs
+  - tail/low caps
+  - optional post-smooth and post-refine stages
+- Returned `PSDResult.meta["param_usage"]` lists the fields consumed by the spectral engine.
 
 ### Iterative inversion (time-domain)
 - `invert_fds_iterative_time(...)`: synthesizes acceleration PSD by matching a target FDS using random-phase time synthesis and `compute_fds_time`.
 - Supports optional target-duration scaling through `target_duration_s`.
+- Uses the common `IterativeInversionParams` subset:
+  - `iters`, `gamma`, `gain_min`, `gain_max`, `alpha_sharpness`
+  - `floor`
+  - `smooth_enabled`, `smooth_window_bins`, `smooth_every_n_iters`
+  - `prior_blend`, `prior_power`
+  - `edge_anchor_hz`, `edge_anchor_blend`
+- The time-domain engine currently ignores:
+  - `tail_cap_start_hz`, `tail_cap_ratio`, `low_cap_ratio`
+  - `post_smooth_window_bins`, `post_smooth_blend`
+  - `post_refine_iters`, `post_refine_gamma`, `post_refine_min`, `post_refine_max`
+- Returned `PSDResult.meta["param_usage"]` makes this usage explicit at runtime.
 
 ## Method assumptions and limits
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from ._inversion_utils import blend_log_curves, build_edge_taper_weights, smooth_psd_log10
+from ._inversion_utils import blend_log_curves, build_edge_taper_weights, iterative_param_usage, smooth_psd_log10
 from .types import FDSResult, PSDResult, IterativeInversionParams, SDOFParams, SNParams
 from .validate import ValidationError, ensure_compat_inversion
 from .sdof_transfer import build_transfer_psd
@@ -58,6 +58,8 @@ def invert_fds_iterative_time(
     -------
     PSDResult
         Contains `meta["diagnostics"]` with convergence history and reconstruction.
+        `meta["param_usage"]` records the subset of `IterativeInversionParams`
+        consumed by the time-domain engine and the spectral-only fields it ignores.
     """
     if not np.isfinite(fs) or float(fs) <= 0:
         raise ValidationError("fs must be finite and > 0.")
@@ -198,6 +200,7 @@ def invert_fds_iterative_time(
             "target_duration_s": float(t_target),
             "duration_scale": float(duration_scale),
         },
+        "param_usage": iterative_param_usage(engine="time", params=params),
         "compat": target.meta.get("compat", {}),
         "provenance": {"source": "invert_fds_iterative_time"},
     }

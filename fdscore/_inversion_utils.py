@@ -2,6 +2,34 @@ from __future__ import annotations
 
 import numpy as np
 
+ITERATIVE_COMMON_PARAM_FIELDS: tuple[str, ...] = (
+    "iters",
+    "gamma",
+    "gain_min",
+    "gain_max",
+    "alpha_sharpness",
+    "floor",
+    "smooth_enabled",
+    "smooth_window_bins",
+    "smooth_every_n_iters",
+    "prior_blend",
+    "prior_power",
+    "edge_anchor_hz",
+    "edge_anchor_blend",
+)
+
+ITERATIVE_SPECTRAL_ONLY_PARAM_FIELDS: tuple[str, ...] = (
+    "tail_cap_start_hz",
+    "tail_cap_ratio",
+    "low_cap_ratio",
+    "post_smooth_window_bins",
+    "post_smooth_blend",
+    "post_refine_iters",
+    "post_refine_gamma",
+    "post_refine_min",
+    "post_refine_max",
+)
+
 
 def moving_average_reflect(x: np.ndarray, win: int) -> np.ndarray:
     win = int(win)
@@ -71,3 +99,23 @@ def apply_edge_caps(
                 p[i] = lim
 
     return np.clip(p, floor, None)
+
+
+def iterative_param_usage(engine: str, params: object) -> dict[str, object]:
+    """Return explicit per-engine parameter usage for iterative inversion metadata."""
+    if engine == "spectral":
+        used_fields = ITERATIVE_COMMON_PARAM_FIELDS + ITERATIVE_SPECTRAL_ONLY_PARAM_FIELDS
+        ignored_fields: tuple[str, ...] = ()
+    elif engine == "time":
+        used_fields = ITERATIVE_COMMON_PARAM_FIELDS
+        ignored_fields = ITERATIVE_SPECTRAL_ONLY_PARAM_FIELDS
+    else:
+        raise ValueError(f"Unsupported iterative inversion engine: {engine}")
+
+    return {
+        "engine": engine,
+        "used_fields": list(used_fields),
+        "ignored_fields": list(ignored_fields),
+        "used": {name: getattr(params, name) for name in used_fields},
+        "ignored": {name: getattr(params, name) for name in ignored_fields},
+    }
