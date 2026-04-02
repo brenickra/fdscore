@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.1
 - Factored shared smoothing, blending, and taper helpers out of the iterative inversion engines into a common internal module
 - Documented per-engine `IterativeInversionParams` usage and exposed it in `PSDResult.meta["param_usage"]`
 
