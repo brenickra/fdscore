@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Factored shared smoothing, blending, and taper helpers out of the iterative inversion engines into a common internal module
 
 ## 0.2.0
 - Added `SNParams.normalized(...)` for explicit normalized workflows (`k` with unit references)
