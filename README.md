@@ -105,6 +105,14 @@ they do not consume exactly the same subset of fields.
 Each inversion result exposes `meta["param_usage"]` so callers can inspect which fields were
 used and which were ignored by the selected engine.
 
+## Examples
+
+Minimal runnable workflows are available under [examples/README.md](examples/README.md):
+
+- `python -m examples.minimal_fds_time`
+- `python -m examples.minimal_fds_spectral`
+- `python -m examples.minimal_inversion_and_metrics`
+
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.

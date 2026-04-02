@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added runnable minimal workflow examples under `examples/` for time-domain FDS, spectral FDS, and closed-form inversion with PSD metrics
 
 ## 0.2.1
 - Factored shared smoothing, blending, and taper helpers out of the iterative inversion engines into a common internal module
