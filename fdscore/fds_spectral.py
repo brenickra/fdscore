@@ -57,6 +57,10 @@ def compute_fds_spectral_psd(
     of the FDS. Use `SNParams.normalized(...)` with `p_scale=1.0` when a normalized
     workflow is sufficient.
 
+    Dirlik is a spectral fatigue approximation. It is not the same algorithm as
+    time-domain rainflow counting on a realized signal, so absolute FDS levels from
+    spectral and time-domain routes should not be expected to match exactly.
+
     Returns
     -------
     FDSResult
@@ -123,6 +127,13 @@ def compute_fds_spectral_time(
     """Compute spectral FDS from a time history by estimating PSD internally (Welch) then using Dirlik.
 
     If `duration_s` is None, uses `len(x)/fs`.
+
+    This route combines two approximation layers:
+    - PSD estimation through Welch
+    - spectral fatigue damage through Dirlik
+
+    Differences relative to `compute_fds_time(...)` or to `compute_fds_spectral_psd(...)`
+    with an explicit reference PSD are therefore expected for finite-length signals.
     """
     if duration_s is None:
         x = np.asarray(x, dtype=float)

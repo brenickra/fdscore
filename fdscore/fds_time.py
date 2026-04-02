@@ -57,7 +57,21 @@ def prepare_fds_time_plan(
     sdof: SDOFParams,
     strict_nyquist: bool = True,
 ) -> FDSTimePlan:
-    """Precompute and store transfer data for repeated `compute_fds_time` calls."""
+    """Precompute and store transfer data for repeated `compute_fds_time` calls.
+
+    A plan avoids rebuilding the FFT-domain transfer matrix for every repeated call
+    with the same `(fs, n_samples, sdof)` configuration.
+
+    Memory tradeoff
+    ---------------
+    The full transfer matrix `H` is stored explicitly as `complex128` with shape
+    `(len(f0), n_fft_bins)`. Memory therefore scales approximately as:
+
+        len(f0) * n_fft_bins * 16 bytes
+
+    For example, 400 oscillators and a 4 s signal at 1 kHz correspond to about
+    12 MB for the plan matrix alone.
+    """
     validate_sdof(sdof)
 
     if sdof.metric not in ("pv", "disp", "vel", "acc"):

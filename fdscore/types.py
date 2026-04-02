@@ -110,6 +110,10 @@ class FDSTimePlan:
     A plan stores the frequency grid and transfer matrix for a fixed
     `(fs, n_samples, sdof)` configuration and can be reused across
     channels/signals with the same sampling setup.
+
+    The stored transfer matrix `H` is materialized as a `complex128` array with
+    shape `(len(f), n_fft_bins)`. This trades memory for speed by avoiding transfer
+    rebuilds during repeated `compute_fds_time(...)` calls.
     """
     fs: float
     n_samples: int

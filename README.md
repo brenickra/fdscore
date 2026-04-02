@@ -67,7 +67,8 @@ Example of a physical setup:
 
 ```python
 sn = SNParams(slope_k=6.0, ref_stress=120.0, ref_cycles=1e6)
-fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, p_scale=6500.0, detrend="linear")
+p_scale_physical = 300.0  # application-specific response -> fatigue scaling
+fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, p_scale=p_scale_physical, detrend="linear")
 ```
 
 For repeated analyses with the same sampling setup:
@@ -113,6 +114,22 @@ Minimal runnable workflows are available under [examples/README.md](examples/REA
 - `python -m examples.minimal_fds_spectral`
 - `python -m examples.minimal_inversion_and_metrics`
 
+## Method assumptions and limits
+
+- `synthesize_time_from_psd(...)` generates stationary Gaussian random-phase realizations.
+  It is useful for iterative predictors, controlled studies, and synthetic examples, but
+  it is not a general substitute for arbitrary measured non-stationary vibration signals.
+- Spectral FDS uses Dirlik through `FLife`. It is a spectral fatigue approximation and is
+  not numerically identical to time-domain rainflow counting on a realized signal.
+- `compute_fds_spectral_time(...)` first estimates a PSD with Welch and then applies Dirlik.
+  Its result therefore depends both on the spectral model and on the PSD estimation settings.
+- Closed-form inversion is implemented only for `metric="pv"`. For other metrics, use the
+  iterative inversion engines.
+- `FDSTimePlan` trades memory for speed by storing the full complex transfer matrix `H`.
+  Memory scales roughly as `len(f0) * (n_fft_bins) * 16 bytes` for `complex128`. For example,
+  400 oscillators and a 4 s signal at 1 kHz correspond to about 12 MB for the plan matrix alone.
+
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.
+

@@ -61,6 +61,12 @@ Fields
 - `metric` (str): `"pv" | "disp" | "vel" | "acc"`.
 - `H` (complex ndarray): FFT-domain transfer matrix with shape `(len(f), n_fft_bins)`.
 
+Memory note
+- `H` is stored explicitly as a `complex128` matrix.
+- Memory scales approximately as `len(f) * n_fft_bins * 16 bytes`.
+- Example: 400 oscillators and a 4 s signal at 1 kHz correspond to roughly
+  `400 * 2001 * 16 ~= 12 MB` for the plan matrix alone.
+
 ### `PSDResult`
 - `f` (Hz): frequency grid.
 - `psd` (units^2/Hz): acceleration PSD.
@@ -114,6 +120,10 @@ Usage notes
 ### `prepare_fds_time_plan(fs, n_samples, sdof, ...) -> FDSTimePlan`
 Precomputes and stores transfer data for repeated `compute_fds_time` calls that share
 the same sampling setup (`fs`, `n_samples`, and `sdof`).
+
+Tradeoff
+- Reusing a plan avoids rebuilding the transfer matrix for every call.
+- The tradeoff is memory: the full `H` matrix is materialized and kept in the plan.
 
 ### `compute_psd_metrics(psd, ...) -> PSDMetricsResult`
 Computes summary metrics from an acceleration PSD.
@@ -185,13 +195,17 @@ Interpretation
 
 - `synthesize_time_from_psd(...)` generates stationary Gaussian time histories through
   random-phase IFFT. It is a numerical synthesis helper, not a general representation
-  of arbitrary measured vibration signals.
+  of arbitrary measured vibration signals, transients, or strongly non-Gaussian processes.
 - Spectral FDS uses Dirlik through `FLife`; it is not the same method as time-domain
   rainflow counting and can produce different absolute FDS levels.
-- Closed-form inversion is supported only for `metric="pv"`.
+- `compute_fds_spectral_time(...)` first estimates PSD with Welch and then applies Dirlik.
+  Its result therefore depends on both the spectral fatigue model and the PSD estimation settings.
+- Closed-form inversion is supported only for `metric="pv"`. Setting `strict_metric=False`
+  only bypasses the guard; it does not generalize the closed-form derivation to other metrics.
 - `FDSTimePlan` stores the full complex transfer matrix `H` with shape
   `(len(f), n_fft_bins)`. This improves reuse performance at the cost of memory.
 
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
 - Time-domain FDS, PSD metrics, closed-form inversion, and time-domain iterative inversion do not require `FLife`.
+

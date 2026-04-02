@@ -103,6 +103,10 @@ def invert_fds_closed_form(
     scaling carried by `p_scale`, `ref_stress`, and `ref_cycles` cancels in the
     closed-form inversion. Those parameters affect absolute FDS magnitude, but not
     the equivalent inverted PSD.
+
+    This implementation is intended for `metric="pv"` only. Passing
+    `strict_metric=False` suppresses the guard, but it does not make the closed-form
+    derivation valid for `disp`, `vel`, or `acc`.
     """
     if not np.isfinite(test_duration_s) or float(test_duration_s) <= 0:
         raise ValidationError("test_duration_s must be finite and > 0.")

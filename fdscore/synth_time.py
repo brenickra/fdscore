@@ -42,6 +42,14 @@ def synthesize_time_from_psd(
     -----
     This routine is typically used by iterative inversion predictors that map
     a PSD to a synthetic time history.
+
+    The generated realization:
+    - is stationary and Gaussian by construction
+    - preserves the target PSD only in the statistical/ensemble sense
+    - does not reproduce transient structure, non-stationarity, or non-Gaussian tails
+
+    For finite durations, Welch estimates from the synthesized signal will not match
+    the input PSD exactly point-by-point.
     """
     f_psd = np.asarray(f_psd_hz, dtype=float).reshape(-1)
     P = np.asarray(psd, dtype=float).reshape(-1)

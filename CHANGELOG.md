@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Clarified public method assumptions and limits for Gaussian time synthesis, Dirlik vs rainflow, closed-form `pv` scope, and `FDSTimePlan` memory cost
 
 ## 0.2.2
 - Added runnable minimal workflow examples under `examples/` for time-domain FDS, spectral FDS, and closed-form inversion with PSD metrics
