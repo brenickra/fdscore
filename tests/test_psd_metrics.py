@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import pytest
 
@@ -73,9 +71,7 @@ def test_integrate_trapz_falls_back_when_numpy_has_no_trapezoid(monkeypatch):
     x = np.array([0.0, 1.0, 2.0])
     y = np.array([0.0, 1.0, 0.0])
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        area = metrics_mod._integrate_trapz(y, x)
+    area = metrics_mod._integrate_trapz(y, x)
 
     assert np.isclose(area, 1.0, rtol=1e-12, atol=1e-12)
 
