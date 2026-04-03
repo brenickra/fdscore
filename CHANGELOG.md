@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests
 - Added rainflow reference-equivalence tests against the external `rainflow` package
 - Added a local benchmark script for comparing external `rainflow` against the internal Numba-backed rainflow/Miner core
