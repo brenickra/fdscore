@@ -1,6 +1,9 @@
+import warnings
+
 import numpy as np
 import pytest
 
+import fdscore.metrics as metrics_mod
 from fdscore import PSDResult, ValidationError, compute_psd_metrics
 
 
@@ -63,3 +66,16 @@ def test_compute_psd_metrics_supports_custom_scale_factor():
     m = compute_psd_metrics(psd, f_hz=f, acc_to_m_s2=2.0)
     expected = np.sqrt(20.0 * (2.0**2))
     assert np.isclose(m.rms_acc_m_s2, expected, rtol=1e-6, atol=1e-12)
+
+def test_integrate_trapz_falls_back_when_numpy_has_no_trapezoid(monkeypatch):
+    monkeypatch.delattr(metrics_mod.np, "trapezoid", raising=False)
+
+    x = np.array([0.0, 1.0, 2.0])
+    y = np.array([0.0, 1.0, 0.0])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        area = metrics_mod._integrate_trapz(y, x)
+
+    assert np.isclose(area, 1.0, rtol=1e-12, atol=1e-12)
+

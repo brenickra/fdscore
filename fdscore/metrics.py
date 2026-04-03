@@ -20,7 +20,10 @@ DEFAULT_BANDS_HZ: tuple[tuple[float, float], ...] = (
 def _integrate_trapz(y: np.ndarray, x: np.ndarray) -> float:
     if y.size == 0 or x.size == 0:
         return 0.0
-    return float(np.trapezoid(y, x))
+    trapz_fn = getattr(np, "trapezoid", None)
+    if trapz_fn is None:
+        return float(np.trapz(y, x))
+    return float(trapz_fn(y, x))
 
 
 def _rms_from_psd(psd: np.ndarray, freq_hz: np.ndarray) -> float:
