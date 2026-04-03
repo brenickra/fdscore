@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added `rainflow` to development dependencies so CI installs the external reference backend for those tests
 - Added rainflow reference-equivalence tests against the external `rainflow` package
 - Added a local benchmark script for comparing external `rainflow` against the internal Numba-backed rainflow/Miner core
 
@@ -65,4 +66,6 @@
 
 ## 0.1.4
 - Added support for metrics `disp/vel/acc` (derived); kept `pv` canonical
+
+
 
