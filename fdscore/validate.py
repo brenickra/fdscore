@@ -79,7 +79,7 @@ def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float =
     return f[mask]
 
 
-def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, f: np.ndarray, engine: str) -> dict:
+def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str) -> dict:
     return {
         "engine": engine,
         "metric": metric,

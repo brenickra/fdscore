@@ -105,7 +105,7 @@ def compute_fds_spectral_psd(
         dmg[i] = float(duration_s) / float(life)
 
     meta = {
-        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, f=f0, engine="spectral_dirlik_flife"),
+        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, engine="spectral_dirlik_flife"),
         "provenance": {
             "source": "compute_fds_spectral_psd",
             "duration_s": float(duration_s),

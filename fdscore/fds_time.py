@@ -226,7 +226,7 @@ def compute_fds_time(
     )
 
     meta = {
-        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, f=f0, engine="time_rainflow_fft_numba"),
+        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, engine="time_rainflow_fft_numba"),
         "provenance": {
             "source": "compute_fds_time",
             "detrend": detrend,

@@ -114,6 +114,15 @@ Minimal runnable workflows are available under [examples/README.md](examples/REA
 - `python -m examples.minimal_fds_spectral`
 - `python -m examples.minimal_inversion_and_metrics`
 
+## Compatibility semantics
+
+`fdscore` uses compatibility in two distinct ways:
+
+- FDS algebra operations such as `sum_fds(...)` require matching damage semantics and the same oscillator frequency grid.
+- Inversion operations require matching damage semantics stored in `meta["compat"]`, but do not require the candidate PSD grid to match the target FDS grid.
+
+This distinction is intentional: FDS addition operates directly on spectra defined on the same oscillator grid, while inversion solves for a separate PSD representation.
+
 ## Method assumptions and limits
 
 - `synthesize_time_from_psd(...)` generates stationary Gaussian random-phase realizations.

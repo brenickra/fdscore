@@ -5,6 +5,12 @@ This document defines the public API contracts of **fdscore**.
 Results carry a `meta["compat"]` signature for compatibility checks across
 aggregation and inversion workflows.
 
+Compatibility is used in two different ways:
+- FDS algebra compatibility (`scale_fds`, `sum_fds`) requires matching damage semantics
+  and the same oscillator frequency grid.
+- Inversion compatibility requires matching damage semantics (`metric`, `q`, `p_scale`, S-N)
+  but does not require a separate PSD grid to match the target FDS grid.
+
 ## Core objects
 
 ### `SNParams`
@@ -144,7 +150,7 @@ Output
 Multiplies damage by `factor > 0` and records provenance.
 
 ### `sum_fds(list_of_fds, weights=None)`
-Sums spectra only when compatible:
+Sums spectra only when compatible under FDS algebra rules:
 - same `metric`, `q`, `p_scale`, same S-N, and same frequency grid.
 
 No implicit regridding is performed.
