@@ -130,6 +130,7 @@ the same sampling setup (`fs`, `n_samples`, and `sdof`).
 Tradeoff
 - Reusing a plan avoids rebuilding the transfer matrix for every call.
 - The tradeoff is memory: the full `H` matrix is materialized and kept in the plan.
+- Plan reuse also requires the same effective oscillator grid after Nyquist validation. If clipping is enabled (`strict_nyquist=False`), plan creation and later calls must be consistent about that choice.
 
 ### `compute_psd_metrics(psd, ...) -> PSDMetricsResult`
 Computes summary metrics from an acceleration PSD.

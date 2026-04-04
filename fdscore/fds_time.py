@@ -121,12 +121,15 @@ def _validate_plan_compatibility(
 
     if not np.isclose(float(plan.fs), float(fs), rtol=0.0, atol=1e-12):
         raise ValidationError(f"FDSTimePlan.fs mismatch: plan={plan.fs}, input={fs}")
-    if not np.isclose(float(plan.zeta), float(zeta), rtol=0.0, atol=1e-15):
+    if not np.isclose(float(plan.zeta), float(zeta), rtol=0.0, atol=1e-12):
         raise ValidationError(f"FDSTimePlan.zeta mismatch: plan={plan.zeta}, input={zeta}")
 
     f_plan = np.asarray(plan.f, dtype=float)
     if f_plan.shape != f0.shape or not np.allclose(f_plan, f0, rtol=0.0, atol=1e-12):
-        raise ValidationError("FDSTimePlan frequency grid mismatch with provided sdof/fs.")
+        raise ValidationError(
+            "FDSTimePlan frequency grid mismatch with provided sdof/fs. "
+            "Check sdof, fs, and whether plan creation and the current call used different Nyquist clipping behavior via strict_nyquist."
+        )
 
     h = np.asarray(plan.H)
     n_bins = int(np.fft.rfftfreq(int(n_samples), d=1.0 / float(fs)).size)
