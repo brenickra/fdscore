@@ -8,6 +8,7 @@
 - Accepted NumPy integer scalar types in `prepare_fds_time_plan(...)` for `n_samples`
 - Relaxed `FDSTimePlan` zeta compatibility tolerance and improved plan grid mismatch diagnostics around Nyquist clipping behavior
 - Exposed PSD metrics band coverage and Gaussian effective-cycle floor diagnostics in metadata while stabilizing custom band key naming
+- Hardened spectral PSD sanitization by clamping only tiny negative numerical noise, rejecting materially negative PSD inputs, and turning invalid FLife life values into explicit `ValidationError`s
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests

@@ -5,6 +5,7 @@ from scipy.signal import welch
 
 from .types import PSDParams
 from .validate import ValidationError
+from ._psd_utils import clip_tiny_negative_psd_or_raise
 
 
 def compute_psd_welch(
@@ -18,6 +19,8 @@ def compute_psd_welch(
     -----
     - This helper is IO-free and purely numerical.
     - `PSDParams` currently supports only `method="welch"`.
+    - Tiny negative PSD values from numerical noise are clamped to zero.
+      Materially negative values raise `ValidationError`.
 
     Returns
     -------
@@ -56,9 +59,7 @@ def compute_psd_welch(
         raise ValidationError("welch returned unexpected shapes.")
     if not (np.all(np.isfinite(f)) and np.all(np.isfinite(Pxx))):
         raise ValidationError("welch produced non-finite outputs.")
-    if np.any(Pxx < 0):
-        # numerical noise can produce tiny negatives; clamp
-        Pxx = np.maximum(Pxx, 0.0)
+    Pxx = clip_tiny_negative_psd_or_raise(Pxx, label="welch PSD")
 
     if psd.fmin is not None or psd.fmax is not None:
         fmin = float(psd.fmin) if psd.fmin is not None else float(f[0])

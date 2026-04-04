@@ -133,6 +133,8 @@ This distinction is intentional: FDS addition operates directly on spectra defin
   not numerically identical to time-domain rainflow counting on a realized signal.
 - `compute_fds_spectral_time(...)` first estimates a PSD with Welch and then applies Dirlik.
   Its result therefore depends both on the spectral model and on the PSD estimation settings.
+- Spectral PSD inputs are expected to be non-negative. Tiny negative values consistent
+  with numerical noise are clamped to zero; materially negative PSD values raise `ValidationError`.
 - Closed-form inversion is implemented only for `metric="pv"`. For other metrics, use the
   iterative inversion engines.
 - `FDSTimePlan` trades memory for speed by storing the full complex transfer matrix `H`.

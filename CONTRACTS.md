@@ -209,6 +209,8 @@ Interpretation
   rainflow counting and can produce different absolute FDS levels.
 - `compute_fds_spectral_time(...)` first estimates PSD with Welch and then applies Dirlik.
   Its result therefore depends on both the spectral fatigue model and the PSD estimation settings.
+- Explicit spectral PSD inputs are expected to be non-negative. Tiny negative values consistent
+  with numerical noise are clamped to zero; materially negative values raise `ValidationError`.
 - Closed-form inversion is supported only for `metric="pv"`. Setting `strict_metric=False`
   only bypasses the guard; it does not generalize the closed-form derivation to other metrics.
 - `FDSTimePlan` stores the full complex transfer matrix `H` with shape

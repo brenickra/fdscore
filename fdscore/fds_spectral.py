@@ -7,6 +7,7 @@ from .grid import build_frequency_grid
 from .validate import ValidationError, validate_sn, validate_sdof, compat_dict, resolve_p_scale
 from .sdof_transfer import build_transfer_psd
 from .psd_welch import compute_psd_welch
+from ._psd_utils import clip_tiny_negative_psd_or_raise
 
 
 def _require_flife():
@@ -61,6 +62,10 @@ def compute_fds_spectral_psd(
     time-domain rainflow counting on a realized signal, so absolute FDS levels from
     spectral and time-domain routes should not be expected to match exactly.
 
+    Input PSD values are expected to be non-negative. Tiny negative values consistent
+    with numerical noise are clamped to zero. Materially negative values raise
+    `ValidationError`.
+
     Returns
     -------
     FDSResult
@@ -79,8 +84,7 @@ def compute_fds_spectral_psd(
         raise ValidationError("f_psd_hz and psd_baseacc must be 1D arrays of the same length >= 2.")
     if not (np.all(np.isfinite(f_psd)) and np.all(np.isfinite(Pyy))):
         raise ValidationError("PSD inputs must be finite.")
-    if np.any(Pyy < 0):
-        Pyy = np.maximum(Pyy, 0.0)
+    Pyy = clip_tiny_negative_psd_or_raise(Pyy, label="psd_baseacc")
     if not np.all(np.diff(f_psd) > 0):
         raise ValidationError("f_psd_hz must be strictly increasing.")
     if f_psd[0] < 0:
@@ -101,8 +105,12 @@ def compute_fds_spectral_psd(
     for i in range(f0.size):
         P_resp = scale2 * (np.abs(H[i]) ** 2) * Pyy
         sd = FLife.SpectralData(input={"PSD": P_resp, "f": f_psd})
-        life = FLife.Dirlik(sd).get_life(C=C, k=k)
-        dmg[i] = float(duration_s) / float(life)
+        life = float(FLife.Dirlik(sd).get_life(C=C, k=k))
+        if not np.isfinite(life) or life <= 0.0:
+            raise ValidationError(
+                f"FLife returned invalid life for oscillator f0={float(f0[i])} Hz: {life}"
+            )
+        dmg[i] = float(duration_s) / life
 
     meta = {
         "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, engine="spectral_dirlik_flife"),
