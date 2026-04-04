@@ -1,4 +1,5 @@
 import numpy as np
+from fdscore import FDSResult, invert_fds_closed_form
 from fdscore.inverse_closed_form import compute_psd_from_fds_closed_form, compute_fds_from_psd_closed_form
 
 def test_closed_form_roundtrip_dp_psd():
@@ -14,3 +15,30 @@ def test_closed_form_roundtrip_dp_psd():
 
     # Should match closely (numerical eps)
     assert np.allclose(dp, dp2, rtol=1e-10, atol=1e-30)
+
+def test_closed_form_accepts_legacy_sn_compat_metadata():
+    f = np.array([10.0, 20.0, 30.0])
+    damage = np.array([1e-6, 2e-6, 3e-6])
+    fds = FDSResult(
+        f=f,
+        damage=damage,
+        meta={
+            "compat": {
+                "metric": "pv",
+                "q": 10.0,
+                "p_scale": 1.0,
+                "sn": {
+                    "k": 3.0,
+                    "Sref": 1.0,
+                    "Nref": 1.0,
+                    "range2amp": True,
+                },
+            }
+        },
+    )
+
+    psd = invert_fds_closed_form(fds, test_duration_s=3600.0)
+
+    assert np.all(np.isfinite(psd.psd))
+    assert np.all(psd.psd > 0.0)
+

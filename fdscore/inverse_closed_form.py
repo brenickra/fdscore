@@ -4,7 +4,7 @@ from math import gamma
 import numpy as np
 
 from .types import FDSResult, PSDResult
-from .validate import ValidationError
+from .validate import ValidationError, normalize_sn_compat
 
 EPS = 1e-30
 
@@ -123,10 +123,12 @@ def invert_fds_closed_form(
     if q is None or p_scale is None or sn is None:
         raise ValidationError("FDS metadata missing required compat fields: q, p_scale, sn.")
 
+    sn_norm = normalize_sn_compat(sn)
+
     try:
-        b = float(sn["slope_k"])
-        ref_stress = float(sn["ref_stress"])
-        ref_cycles = float(sn["ref_cycles"])
+        b = float(sn_norm["slope_k"])
+        ref_stress = float(sn_norm["ref_stress"])
+        ref_cycles = float(sn_norm["ref_cycles"])
     except Exception as e:
         raise ValidationError(f"Invalid S-N metadata in FDS compat: {e}") from e
 

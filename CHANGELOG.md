@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Restored PSD metrics integration compatibility with NumPy 1.x while keeping `numpy>=1.24` as the supported floor
+- Normalized legacy S-N compatibility metadata in closed-form inversion so all inversion routes accept the same serialized FDS signatures
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests

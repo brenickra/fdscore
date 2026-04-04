@@ -95,6 +95,33 @@ def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, f: np.ndarr
     }
 
 
+def normalize_sn_compat(sn_sig) -> dict[str, float | bool]:
+    if not isinstance(sn_sig, dict):
+        raise ValidationError("FDS compat metadata field 'sn' must be a dictionary.")
+
+    if {"k", "Sref", "Nref", "range2amp"}.issubset(sn_sig.keys()):
+        return {
+            "slope_k": float(sn_sig["k"]),
+            "ref_stress": float(sn_sig["Sref"]),
+            "ref_cycles": float(sn_sig["Nref"]),
+            "amplitude_from_range": bool(sn_sig["range2amp"]),
+        }
+
+    if {"slope_k", "ref_stress", "ref_cycles", "amplitude_from_range"}.issubset(sn_sig.keys()):
+        return {
+            "slope_k": float(sn_sig["slope_k"]),
+            "ref_stress": float(sn_sig["ref_stress"]),
+            "ref_cycles": float(sn_sig["ref_cycles"]),
+            "amplitude_from_range": bool(sn_sig["amplitude_from_range"]),
+        }
+
+    raise ValidationError(
+        "Invalid S-N metadata in FDS compat. Expected either legacy keys "
+        "{'k','Sref','Nref','range2amp'} or current keys "
+        "{'slope_k','ref_stress','ref_cycles','amplitude_from_range'}."
+    )
+
+
 def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
     ca = (a.meta or {}).get("compat", {})
     cb = (b.meta or {}).get("compat", {})
@@ -131,23 +158,7 @@ def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn
         "amplitude_from_range": bool(sn.amplitude_from_range),
     }
 
-    # Backward compatibility for legacy sn signature keys:
-    #   {"k","Sref","Nref","range2amp"}.
-    if isinstance(sn_sig, dict):
-        if {"k", "Sref", "Nref", "range2amp"}.issubset(sn_sig.keys()):
-            sn_sig = {
-                "slope_k": float(sn_sig["k"]),
-                "ref_stress": float(sn_sig["Sref"]),
-                "ref_cycles": float(sn_sig["Nref"]),
-                "amplitude_from_range": bool(sn_sig["range2amp"]),
-            }
-        elif {"slope_k", "ref_stress", "ref_cycles", "amplitude_from_range"}.issubset(sn_sig.keys()):
-            sn_sig = {
-                "slope_k": float(sn_sig["slope_k"]),
-                "ref_stress": float(sn_sig["ref_stress"]),
-                "ref_cycles": float(sn_sig["ref_cycles"]),
-                "amplitude_from_range": bool(sn_sig["amplitude_from_range"]),
-            }
+    sn_sig = normalize_sn_compat(sn_sig)
     if sn_sig != cur_sig:
         raise ValidationError(f"Incompatible SN parameters between target and inversion.")
 
