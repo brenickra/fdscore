@@ -37,3 +37,13 @@ def test_compute_fds_time_plan_validation():
     plan_wrong_n = prepare_fds_time_plan(fs=fs, n_samples=x.size + 1, sdof=sdof)
     with pytest.raises(ValidationError):
         compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan_wrong_n)
+
+def test_prepare_fds_time_plan_accepts_numpy_integer_scalars():
+    fs = 1000.0
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="pv")
+
+    plan = prepare_fds_time_plan(fs=fs, n_samples=np.int64(2048), sdof=sdof)
+
+    assert plan.n_samples == 2048
+    assert np.isclose(plan.fs, fs)
+

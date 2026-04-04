@@ -78,8 +78,8 @@ def prepare_fds_time_plan(
         raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
     if not np.isfinite(fs) or float(fs) <= 0:
         raise ValidationError("fs must be finite and > 0.")
-    if not isinstance(n_samples, int) or n_samples < 4:
-        raise ValidationError("n_samples must be an int >= 4.")
+    if not isinstance(n_samples, (int, np.integer)) or int(n_samples) < 4:
+        raise ValidationError("n_samples must be an integer >= 4.")
 
     f0 = build_frequency_grid(sdof)
     f0 = validate_nyquist(f0, fs=float(fs), strict=bool(strict_nyquist))
