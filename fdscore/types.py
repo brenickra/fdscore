@@ -133,7 +133,11 @@ class PSDResult:
 
 @dataclass(frozen=True, slots=True)
 class PSDMetricsResult:
-    """Summary metrics computed from an acceleration PSD."""
+    """Summary metrics computed from an acceleration PSD.
+
+    `meta` stores auxiliary details such as band coverage and peak-statistics
+    diagnostics used to interpret the scalar outputs.
+    """
     rms_acc_g: float
     rms_acc_m_s2: float
     peak_acc_g: float

@@ -92,6 +92,7 @@ print(metrics.rms_acc_g, metrics.peak_acc_g, metrics.band_rms_g)
 ```
 
 `compute_psd_metrics(...)` requires an explicit acceleration unit through `acc_unit` or `acc_to_m_s2`.
+Band RMS values remain available in `band_rms_g`, while `meta["band_coverage"]` reports whether each requested band was fully covered by the input PSD grid. `meta["peak_statistics"]` exposes when Gaussian effective-cycle floors were applied.
 
 ## Iterative inversion parameter usage
 

@@ -7,6 +7,7 @@
 - Relaxed inversion compatibility checks for `q` and `p_scale` to tolerate tiny numeric drift while still rejecting material mismatches
 - Accepted NumPy integer scalar types in `prepare_fds_time_plan(...)` for `n_samples`
 - Relaxed `FDSTimePlan` zeta compatibility tolerance and improved plan grid mismatch diagnostics around Nyquist clipping behavior
+- Exposed PSD metrics band coverage and Gaussian effective-cycle floor diagnostics in metadata while stabilizing custom band key naming
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests

@@ -40,19 +40,21 @@ def _spectral_moment(psd: np.ndarray, freq_hz: np.ndarray, order: int) -> float:
     return _integrate_trapz((w**order) * np.clip(psd, 0.0, None), freq_hz)
 
 
-def _gaussian_peak_statistics(psd: np.ndarray, freq_hz: np.ndarray, duration_s: float) -> tuple[float, float, float]:
+def _gaussian_peak_statistics(psd: np.ndarray, freq_hz: np.ndarray, duration_s: float) -> tuple[float, float, float, bool, float]:
     m0 = _spectral_moment(psd, freq_hz, order=0)
     m2 = _spectral_moment(psd, freq_hz, order=2)
     if m0 <= 0.0 or m2 <= 0.0 or duration_s <= 0.0:
-        return float("nan"), float("nan"), float("nan")
+        return float("nan"), float("nan"), float("nan"), False, float("nan")
 
     nu0 = (1.0 / (2.0 * np.pi)) * np.sqrt(m2 / m0)
-    n_eff = max(float(nu0) * float(duration_s), np.e)
+    n_eff_raw = float(nu0) * float(duration_s)
+    floor_applied = bool(n_eff_raw < np.e)
+    n_eff = max(n_eff_raw, np.e)
     u = np.sqrt(2.0 * np.log(n_eff))
     if u <= 0.0:
-        return float("nan"), float(nu0), float(n_eff)
+        return float("nan"), float(nu0), float(n_eff), floor_applied, float(n_eff_raw)
     peak_factor = float(u + (EULER_GAMMA / u))
-    return peak_factor, float(nu0), float(n_eff)
+    return peak_factor, float(nu0), float(n_eff), floor_applied, float(n_eff_raw)
 
 
 def _acceleration_to_velocity_displacement_psd(psd_acc_ms2: np.ndarray, freq_hz: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -104,6 +106,19 @@ def _validate_bands_hz(bands_hz: Sequence[tuple[float, float]]) -> tuple[tuple[f
     return tuple(out)
 
 
+def _format_band_edge(freq_hz: float) -> str:
+    val = float(freq_hz)
+    rounded = round(val)
+    if np.isclose(val, float(rounded), rtol=0.0, atol=1e-12):
+        return str(int(rounded))
+    label = f"{val:.6g}".replace("-", "m").replace(".", "p")
+    return label.replace("+", "")
+
+
+def _make_band_key(f_lo: float, f_hi: float) -> str:
+    return f"rms_g_{_format_band_edge(f_lo)}_{_format_band_edge(f_hi)}Hz"
+
+
 def compute_psd_metrics(
     psd: PSDResult | np.ndarray,
     *,
@@ -152,6 +167,9 @@ def compute_psd_metrics(
 
     p = np.maximum(p, 0.0)
     bands = _validate_bands_hz(bands_hz)
+    band_keys = [_make_band_key(f_lo, f_hi) for f_lo, f_hi in bands]
+    if len(set(band_keys)) != len(band_keys):
+        raise ValidationError("bands_hz must map to unique output keys in band_rms_g.")
 
     if duration_s is not None:
         if not np.isfinite(duration_s) or float(duration_s) <= 0.0:
@@ -168,9 +186,9 @@ def compute_psd_metrics(
     rms_acc_g = rms_acc_m_s2 / G0
 
     if np.isfinite(dur):
-        peak_factor, nu0, n_eff = _gaussian_peak_statistics(psd_acc_ms2, freq, dur)
+        peak_factor, nu0, n_eff, n_eff_floor_applied, n_eff_raw = _gaussian_peak_statistics(psd_acc_ms2, freq, dur)
     else:
-        peak_factor, nu0, n_eff = float("nan"), float("nan"), float("nan")
+        peak_factor, nu0, n_eff, n_eff_floor_applied, n_eff_raw = float("nan"), float("nan"), float("nan"), False, float("nan")
     peak_acc_m_s2 = float(rms_acc_m_s2 * peak_factor) if np.isfinite(peak_factor) else float("nan")
     peak_acc_g = peak_acc_m_s2 / G0 if np.isfinite(peak_acc_m_s2) else float("nan")
 
@@ -179,11 +197,11 @@ def compute_psd_metrics(
     rms_disp_m = _rms_from_psd(psd_d, freq)
 
     if np.isfinite(dur):
-        peak_factor_v, _, _ = _gaussian_peak_statistics(psd_v, freq, dur)
-        peak_factor_d, _, _ = _gaussian_peak_statistics(psd_d, freq, dur)
+        peak_factor_v, nu0_v, n_eff_v, n_eff_floor_applied_v, n_eff_raw_v = _gaussian_peak_statistics(psd_v, freq, dur)
+        peak_factor_d, nu0_d, n_eff_d, n_eff_floor_applied_d, n_eff_raw_d = _gaussian_peak_statistics(psd_d, freq, dur)
     else:
-        peak_factor_v = float("nan")
-        peak_factor_d = float("nan")
+        peak_factor_v, nu0_v, n_eff_v, n_eff_floor_applied_v, n_eff_raw_v = float("nan"), float("nan"), float("nan"), False, float("nan")
+        peak_factor_d, nu0_d, n_eff_d, n_eff_floor_applied_d, n_eff_raw_d = float("nan"), float("nan"), float("nan"), False, float("nan")
 
     peak_vel_m_s = float(rms_vel_m_s * peak_factor_v) if np.isfinite(peak_factor_v) else float("nan")
     peak_disp_m = float(rms_disp_m * peak_factor_d) if np.isfinite(peak_factor_d) else float("nan")
@@ -191,10 +209,33 @@ def compute_psd_metrics(
     disp_pk_pk_mm = float(2.0 * peak_disp_mm) if np.isfinite(peak_disp_mm) else float("nan")
 
     band_rms_g: dict[str, float] = {}
+    band_coverage: dict[str, dict[str, float | bool | None]] = {}
     for f_lo, f_hi in bands:
-        key = f"rms_g_{int(f_lo)}_{int(f_hi)}Hz"
+        key = _make_band_key(f_lo, f_hi)
         mask = (freq >= f_lo) & (freq <= f_hi)
-        band_rms_g[key] = _rms_from_psd(psd_acc_g2[mask], freq[mask]) if np.any(mask) else float("nan")
+        if np.any(mask):
+            freq_band = freq[mask]
+            band_rms_g[key] = _rms_from_psd(psd_acc_g2[mask], freq_band)
+            covered_lo = float(freq_band[0])
+            covered_hi = float(freq_band[-1])
+            partial = bool((covered_lo > (f_lo + 1e-12)) or (covered_hi < (f_hi - 1e-12)))
+            coverage_fraction = float(max(covered_hi - covered_lo, 0.0) / (f_hi - f_lo))
+            band_coverage[key] = {
+                "requested_hz": (float(f_lo), float(f_hi)),
+                "covered_hz": (covered_lo, covered_hi),
+                "has_data": True,
+                "partial_coverage": partial,
+                "coverage_fraction": coverage_fraction,
+            }
+        else:
+            band_rms_g[key] = float("nan")
+            band_coverage[key] = {
+                "requested_hz": (float(f_lo), float(f_hi)),
+                "covered_hz": None,
+                "has_data": False,
+                "partial_coverage": False,
+                "coverage_fraction": 0.0,
+            }
 
     out_meta = {
         "source": "compute_psd_metrics",
@@ -202,6 +243,27 @@ def compute_psd_metrics(
         "acc_to_m_s2": float(acc_scale),
         "duration_s": dur,
         "bands_hz": [tuple(map(float, b)) for b in bands],
+        "band_coverage": band_coverage,
+        "peak_statistics": {
+            "acc": {
+                "zero_upcrossing_hz": float(nu0),
+                "effective_cycles_raw": float(n_eff_raw),
+                "effective_cycles_used": float(n_eff),
+                "n_eff_floor_applied": bool(n_eff_floor_applied),
+            },
+            "vel": {
+                "zero_upcrossing_hz": float(nu0_v),
+                "effective_cycles_raw": float(n_eff_raw_v),
+                "effective_cycles_used": float(n_eff_v),
+                "n_eff_floor_applied": bool(n_eff_floor_applied_v),
+            },
+            "disp": {
+                "zero_upcrossing_hz": float(nu0_d),
+                "effective_cycles_raw": float(n_eff_raw_d),
+                "effective_cycles_used": float(n_eff_d),
+                "n_eff_floor_applied": bool(n_eff_floor_applied_d),
+            },
+        },
     }
 
     return PSDMetricsResult(

@@ -88,7 +88,9 @@ Fields
 - `rms_vel_m_s`, `peak_vel_m_s`
 - `rms_disp_mm`, `peak_disp_mm`, `disp_pk_pk_mm`
 - `band_rms_g` (dict with per-band RMS in g)
-- `meta` (inputs and settings used for metric computation)
+- `meta` (inputs and settings used for metric computation), including:
+  - `band_coverage` for requested vs effective band support on the PSD grid
+  - `peak_statistics` for Gaussian peak diagnostic details such as effective-cycle floors
 
 ## Core API
 

@@ -75,3 +75,41 @@ def test_integrate_trapz_falls_back_when_numpy_has_no_trapezoid(monkeypatch):
 
     assert np.isclose(area, 1.0, rtol=1e-12, atol=1e-12)
 
+def test_compute_psd_metrics_reports_partial_band_coverage_in_meta():
+    f = np.linspace(0.0, 100.0, 1001)
+    psd = np.full_like(f, 1e-4)
+
+    m = compute_psd_metrics(psd, f_hz=f, duration_s=10.0, acc_unit="g")
+
+    coverage = m.meta["band_coverage"]["rms_g_80_200Hz"]
+    assert coverage["has_data"] is True
+    assert coverage["partial_coverage"] is True
+    assert coverage["covered_hz"] == (80.0, 100.0)
+    assert np.isclose(coverage["coverage_fraction"], 20.0 / 120.0, rtol=1e-12, atol=1e-12)
+
+    coverage_empty = m.meta["band_coverage"]["rms_g_200_400Hz"]
+    assert coverage_empty["has_data"] is False
+    assert coverage_empty["covered_hz"] is None
+
+
+def test_compute_psd_metrics_custom_band_keys_are_stable_and_distinct():
+    f = np.linspace(0.0, 30.0, 301)
+    psd = np.full_like(f, 1e-4)
+
+    m = compute_psd_metrics(psd, f_hz=f, acc_unit="g", bands_hz=[(5.9, 20.9), (5.0, 20.0)])
+
+    assert "rms_g_5p9_20p9Hz" in m.band_rms_g
+    assert "rms_g_5_20Hz" in m.band_rms_g
+
+
+def test_compute_psd_metrics_exposes_effective_cycle_floor_usage():
+    f = np.linspace(0.0, 1.0, 1001)
+    psd = np.full_like(f, 1e-4)
+
+    m = compute_psd_metrics(psd, f_hz=f, duration_s=0.01, acc_unit="g")
+
+    peak_meta = m.meta["peak_statistics"]["acc"]
+    assert peak_meta["n_eff_floor_applied"] is True
+    assert peak_meta["effective_cycles_raw"] < np.e
+    assert np.isclose(m.effective_cycles, np.e, rtol=1e-12, atol=1e-12)
+
