@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from fdscore import SNParams, SDOFParams, compute_fds_time, sum_fds, ValidationError
+from fdscore.validate import ensure_compat_inversion
 
 def test_compat_signature_and_sum_guard():
     fs = 1000.0
@@ -31,4 +32,32 @@ def test_compat_metadata_does_not_embed_frequency_grid():
     assert "f" not in compat
     assert compat["metric"] == "pv"
     assert compat["fds_kind"] == "damage_spectrum"
+
+def test_inversion_compat_accepts_tiny_float_drift():
+    rng = np.random.default_rng(3)
+    x = rng.standard_normal(256)
+    fs = 512.0
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.3, fmin=5.0, fmax=40.0, df=5.0, metric="pv")
+
+    fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, p_scale=1.0)
+    compat = dict(fds.meta["compat"])
+    compat["q"] = float(compat["q"]) * (1.0 + 1e-12)
+    compat["p_scale"] = float(compat["p_scale"]) * (1.0 + 1e-12)
+    fds.meta["compat"] = compat
+
+    ensure_compat_inversion(target=fds, metric=sdof.metric, q=sdof.q, p_scale=1.0, sn=sn)
+
+
+def test_inversion_compat_rejects_material_float_mismatch():
+    rng = np.random.default_rng(4)
+    x = rng.standard_normal(256)
+    fs = 512.0
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=40.0, df=5.0, metric="pv")
+
+    fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, p_scale=1.0)
+
+    with pytest.raises(ValidationError):
+        ensure_compat_inversion(target=fds, metric=sdof.metric, q=10.1, p_scale=1.0, sn=sn)
 

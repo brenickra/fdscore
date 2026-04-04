@@ -122,6 +122,15 @@ def normalize_sn_compat(sn_sig) -> dict[str, float | bool]:
     )
 
 
+def _ensure_compat_float_match(*, actual, expected: float, field: str, rtol: float = 1e-9, atol: float = 1e-12) -> None:
+    actual_f = float(actual)
+    expected_f = float(expected)
+    if not np.isfinite(actual_f):
+        raise ValidationError(f"Incompatible {field}: target={actual} is not finite")
+    if not np.isclose(actual_f, expected_f, rtol=rtol, atol=atol):
+        raise ValidationError(f"Incompatible {field}: target={actual_f} vs inversion={expected_f}")
+
+
 def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
     ca = (a.meta or {}).get("compat", {})
     cb = (b.meta or {}).get("compat", {})
@@ -145,10 +154,8 @@ def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn
     c = target.meta["compat"]
     if str(c.get("metric")) != str(metric):
         raise ValidationError(f"Incompatible metric: target={c.get('metric')} vs inversion={metric}")
-    if float(c.get("q")) != float(q):
-        raise ValidationError(f"Incompatible Q: target={c.get('q')} vs inversion={q}")
-    if float(c.get("p_scale")) != float(p_scale):
-        raise ValidationError(f"Incompatible p_scale: target={c.get('p_scale')} vs inversion={p_scale}")
+    _ensure_compat_float_match(actual=c.get("q"), expected=q, field="Q")
+    _ensure_compat_float_match(actual=c.get("p_scale"), expected=p_scale, field="p_scale")
     # SN signature match
     sn_sig = c.get("sn")
     cur_sig = {
