@@ -150,12 +150,13 @@ Output
 - Band RMS values in g.
 
 ### `scale_fds(fds, factor)`
-Multiplies damage by `factor > 0` and records provenance.
+Multiplies damage by `factor > 0` and records structured provenance for the new result, including the scaled input provenance.
 
 ### `sum_fds(list_of_fds, weights=None)`
 Sums spectra only when compatible under FDS algebra rules:
 - same `metric`, `q`, `p_scale`, same S-N, and same frequency grid.
 
+The output preserves the compatible metadata from the reference spectrum and records structured provenance for all inputs and weights.
 No implicit regridding is performed.
 
 ### `invert_fds_closed_form(fds, test_duration_s)`
@@ -219,4 +220,5 @@ Interpretation
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
 - Time-domain FDS, PSD metrics, closed-form inversion, and time-domain iterative inversion do not require `FLife`.
+
 

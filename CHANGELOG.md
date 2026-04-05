@@ -10,6 +10,7 @@
 - Exposed PSD metrics band coverage and Gaussian effective-cycle floor diagnostics in metadata while stabilizing custom band key naming
 - Hardened spectral PSD sanitization by clamping only tiny negative numerical noise, rejecting materially negative PSD inputs, and turning invalid FLife life values into explicit `ValidationError`s
 - Strengthened iterative inversion diagnostics with explicit stage metadata, effective smoothing-window reporting, and a non-recursive post-refine guard
+- Improved FDS algebra provenance so scaled and summed spectra retain structured input provenance instead of only the first-result trail
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests
@@ -77,6 +78,7 @@
 
 ## 0.1.4
 - Added support for metrics `disp/vel/acc` (derived); kept `pv` canonical
+
 
 
 

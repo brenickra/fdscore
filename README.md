@@ -119,7 +119,7 @@ Minimal runnable workflows are available under [examples/README.md](examples/REA
 
 `fdscore` uses compatibility in two distinct ways:
 
-- FDS algebra operations such as `sum_fds(...)` require matching damage semantics and the same oscillator frequency grid.
+- FDS algebra operations such as `sum_fds(...)` require matching damage semantics and the same oscillator frequency grid. Composed results retain compatible metadata and record structured provenance for scaling/summation inputs.
 - Inversion operations require matching damage semantics stored in `meta["compat"]`, but do not require the candidate PSD grid to match the target FDS grid.
 
 This distinction is intentional: FDS addition operates directly on spectra defined on the same oscillator grid, while inversion solves for a separate PSD representation.
@@ -144,4 +144,5 @@ This distinction is intentional: FDS addition operates directly on spectra defin
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.
+
 

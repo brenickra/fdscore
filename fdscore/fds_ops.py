@@ -1,20 +1,31 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from copy import deepcopy
+from typing import Optional, Sequence, Any
 import numpy as np
 
 from .types import FDSResult
 from .validate import ValidationError, assert_fds_compatible
 
 
+def _copy_meta(fds: FDSResult) -> dict[str, Any]:
+    return deepcopy(fds.meta or {})
+
+
+def _copy_provenance(fds: FDSResult) -> dict[str, Any]:
+    return deepcopy((fds.meta or {}).get("provenance", {}))
+
+
 def scale_fds(fds: FDSResult, factor: float) -> FDSResult:
     if not np.isfinite(factor) or factor <= 0:
         raise ValidationError("scale factor must be finite and > 0.")
     dmg = np.asarray(fds.damage, dtype=float) * float(factor)
-    meta = dict(fds.meta or {})
-    prov = dict(meta.get("provenance", {}))
-    prov.setdefault("ops", []).append({"op": "scale", "factor": float(factor)})
-    meta["provenance"] = prov
+    meta = _copy_meta(fds)
+    meta["provenance"] = {
+        "source": "scale_fds",
+        "factor": float(factor),
+        "input": _copy_provenance(fds),
+    }
     return FDSResult(f=np.asarray(fds.f, dtype=float), damage=dmg, meta=meta)
 
 
@@ -42,8 +53,19 @@ def sum_fds(fds_list: Sequence[FDSResult], weights: Optional[Sequence[float]] = 
             continue
         damage += float(wi) * np.asarray(fds.damage, dtype=float)
 
-    meta = dict(ref.meta or {})
-    prov = dict(meta.get("provenance", {}))
-    prov.setdefault("ops", []).append({"op": "sum", "n": len(fds_list)})
-    meta["provenance"] = prov
+    meta = _copy_meta(ref)
+    meta["provenance"] = {
+        "source": "sum_fds",
+        "n_inputs": int(len(fds_list)),
+        "n_nonzero": int(np.count_nonzero(w)),
+        "weights": [float(x) for x in w],
+        "inputs": [
+            {
+                "index": int(i),
+                "weight": float(wi),
+                "provenance": _copy_provenance(fds),
+            }
+            for i, (wi, fds) in enumerate(zip(w, fds_list))
+        ],
+    }
     return FDSResult(f=np.asarray(ref.f, dtype=float), damage=damage, meta=meta)
