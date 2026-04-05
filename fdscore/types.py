@@ -153,7 +153,7 @@ class PSDMetricsResult:
     band_rms_g: dict[str, float] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class IterativeInversionParams:
     """Configuration parameters for iterative PSD inversion.
 
@@ -207,3 +207,5 @@ class IterativeInversionParams:
     post_refine_gamma: float = 0.5
     post_refine_min: float = 0.7
     post_refine_max: float = 2.2
+
+
