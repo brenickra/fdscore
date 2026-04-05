@@ -5,6 +5,9 @@
 - Added deterministic ERS APIs and ERS envelope composition
 - Added `ERSResult` and `SineDwellSegment` public dataclasses
 - Added regression coverage for deterministic sine response/damage and dwell mission composition
+- Added `compute_ers_time(...)` for measured histories using FFT-domain SDOF response reconstruction
+- Allowed `compute_ers_time(...)` to reuse a compatible `FDSTimePlan` when the metric and sampling setup match
+- Added regression coverage for time-domain ERS scaling, zero-input behavior, plan reuse, and mission envelopes
 
 
 ## 0.2.5

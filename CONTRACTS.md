@@ -199,6 +199,19 @@ Computes mission-level ERS from multiple deterministic dwell segments.
 Mission rule
 - ERS composes by pointwise envelope, not summation.
 
+### `compute_ers_time(x, fs, sdof, ...) -> ERSResult`
+Computes time-domain ERS by reconstructing SDOF responses in the FFT domain and
+extracting their peak response.
+
+Current contract
+- supports `peak_mode="abs"`
+- uses the selected `sdof.metric`
+- accepts an optional compatible `FDSTimePlan` to reuse transfer data
+
+Interpretation
+- if ERS and FDS use different metrics, their frequency grid may match, but the
+  transfer matrix must still match the chosen ERS metric.
+
 ### `compute_fds_dwell_profile(segments, sn, sdof, ...) -> FDSResult`
 Computes mission-level FDS from multiple deterministic dwell segments.
 

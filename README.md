@@ -157,6 +157,17 @@ Mission composition rules are intentionally different:
 - `FDS` composes by damage summation.
 - `ERS` composes by pointwise envelope, not summation.
 
+Measured time histories are supported through `compute_ers_time(...)`:
+
+```python
+from fdscore import compute_ers_time
+
+ers_time = compute_ers_time(x, fs, sdof=sdof_ers, detrend="linear", batch_size=64)
+```
+
+If the metric and sampling setup match, `compute_ers_time(...)` can also reuse a
+compatible `FDSTimePlan`, since the plan stores only the FFT-domain transfer matrix.
+
 ## Compatibility semantics
 
 `fdscore` uses compatibility in two distinct ways:
