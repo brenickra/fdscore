@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
-from typing import Literal
 
-Metric = Literal["pv", "disp", "vel", "acc"]
+from .types import Metric
 
 
 def h_baseacc_to_x(freq_hz: np.ndarray, fn_hz: np.ndarray, zeta: float) -> np.ndarray:
