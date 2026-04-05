@@ -63,6 +63,17 @@ Notes
   - `sn` (`slope_k`, `ref_stress`, `ref_cycles`, `amplitude_from_range`)
   - `fds_kind`
 
+### `ERSResult`
+- `f` (Hz): oscillator natural frequencies.
+- `response`: extreme response per oscillator for the selected response metric.
+- `meta`: dictionary carrying response-spectrum diagnostics.
+- `meta["compat"]` is a dict-based signature with the fields:
+  - `engine`
+  - `metric`
+  - `q`
+  - `peak_mode`
+  - `ers_kind`
+
 ### `FDSTimePlan`
 Precomputed transfer plan for repeated time-domain FDS calls.
 
@@ -84,6 +95,16 @@ Memory note
 - `f` (Hz): frequency grid.
 - `psd` (units^2/Hz): acceleration PSD.
 - `meta`: additional diagnostics.
+
+### `SineDwellSegment`
+Defines one deterministic harmonic dwell segment.
+
+Fields
+- `freq_hz` (float, >0): dwell excitation frequency.
+- `amp` (float, >=0): base-motion amplitude.
+- `duration_s` (float, >0): dwell duration.
+- `input_motion` (str): `"acc" | "vel" | "disp"` describing what `amp` represents.
+- `label` (optional str): user label for provenance.
 
 ### `PSDMetricsResult`
 Summary metrics derived from acceleration PSD.
@@ -155,6 +176,43 @@ Output
 - RMS/peak metrics for acceleration, velocity, and displacement.
 - Upcrossing/peak-factor statistics.
 - Band RMS values in g.
+
+### `compute_ers_sine(freq_hz, amp, sdof, ...) -> ERSResult`
+Computes deterministic ERS for a single-frequency harmonic base excitation.
+
+Notes
+- ERS remains tied to the selected `sdof.metric`.
+- `input_motion` specifies whether the provided amplitude is base acceleration, velocity, or displacement.
+- The current implementation supports `peak_mode="abs"`.
+
+### `compute_fds_sine(freq_hz, amp, duration_s, sn, sdof, ...) -> FDSResult`
+Computes deterministic FDS for a single-frequency harmonic base excitation without time simulation.
+
+Damage model
+- response amplitude is computed from the SDOF transfer at the excitation frequency
+- cycles are `freq_hz * duration_s`
+- damage follows the existing `SNParams` and `p_scale` conventions
+
+### `compute_ers_dwell_profile(segments, sdof, ...) -> ERSResult`
+Computes mission-level ERS from multiple deterministic dwell segments.
+
+Mission rule
+- ERS composes by pointwise envelope, not summation.
+
+### `compute_fds_dwell_profile(segments, sn, sdof, ...) -> FDSResult`
+Computes mission-level FDS from multiple deterministic dwell segments.
+
+Mission rule
+- FDS composes by damage summation.
+
+### `envelope_ers(list_of_ers)`
+Computes a pointwise envelope across compatible ERS results.
+
+Compatibility
+- same response metric
+- same `q` / damping
+- same peak mode
+- same oscillator grid
 
 ### `scale_fds(fds, factor)`
 Multiplies damage by `factor > 0` and records structured provenance for the new result, including the scaled input provenance.

@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- Added deterministic sine and dwell-profile FDS APIs
+- Added deterministic ERS APIs and ERS envelope composition
+- Added `ERSResult` and `SineDwellSegment` public dataclasses
+- Added regression coverage for deterministic sine response/damage and dwell mission composition
+
 
 ## 0.2.5
 - Restored PSD metrics integration compatibility with NumPy 1.x while keeping `numpy>=1.24` as the supported floor

@@ -12,6 +12,8 @@ building blocks for engineering applications.
 - Iterative PSD inversion with spectral and time-domain predictors
 - Reusable transfer plans for repeated FDS evaluations
 - PSD summary metrics including RMS, Gaussian peak estimates, and velocity/displacement metrics
+- Deterministic sine and dwell-profile FDS workflows
+- Deterministic ERS workflows and mission-level ERS envelope composition
 - Normalized (`k`-only) and physical (`S-N + p_scale`) workflow support
 
 ## Installation
@@ -119,6 +121,42 @@ Minimal runnable workflows are available under [examples/README.md](examples/REA
 - `python -m examples.minimal_fds_spectral`
 - `python -m examples.minimal_inversion_and_metrics`
 
+## Deterministic harmonic workflows
+
+Deterministic sine and dwell helpers extend `fdscore` without changing the existing FDS/PSD APIs.
+
+For a single sine:
+
+```python
+from fdscore import SDOFParams, SNParams, compute_ers_sine, compute_fds_sine
+
+sdof_ers = SDOFParams(q=10.0, fmin=10.0, fmax=200.0, df=5.0, metric="acc")
+sdof_fds = SDOFParams(q=10.0, fmin=10.0, fmax=200.0, df=5.0, metric="pv")
+sn = SNParams.normalized(slope_k=6.0)
+
+ers = compute_ers_sine(freq_hz=80.0, amp=2.0, sdof=sdof_ers, input_motion="acc")
+fds = compute_fds_sine(freq_hz=80.0, amp=2.0, duration_s=300.0, sn=sn, sdof=sdof_fds)
+``` 
+
+For multiple dwells:
+
+```python
+from fdscore import SineDwellSegment, compute_ers_dwell_profile, compute_fds_dwell_profile
+
+segments = [
+    SineDwellSegment(freq_hz=40.0, amp=1.5, duration_s=600.0),
+    SineDwellSegment(freq_hz=80.0, amp=2.0, duration_s=300.0),
+]
+
+ers_mission = compute_ers_dwell_profile(segments, sdof=sdof_ers)
+fds_mission = compute_fds_dwell_profile(segments, sn=sn, sdof=sdof_fds)
+``` 
+
+Mission composition rules are intentionally different:
+
+- `FDS` composes by damage summation.
+- `ERS` composes by pointwise envelope, not summation.
+
 ## Compatibility semantics
 
 `fdscore` uses compatibility in two distinct ways:
@@ -148,6 +186,7 @@ This distinction is intentional: FDS addition operates directly on spectra defin
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.
+
 
 
 
