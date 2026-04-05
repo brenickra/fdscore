@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.5
 - Restored PSD metrics integration compatibility with NumPy 1.x while keeping `numpy>=1.24` as the supported floor
 - Centralized current FDS compatibility schema parsing/building so algebra and inversion checks share one typed normalization path
 - Removed the unused frequency-grid argument from the internal compatibility metadata builder and documented the distinct semantics of FDS algebra vs inversion compatibility
@@ -14,6 +16,7 @@
 - Exposed the fixed predictor policy used by time-domain iterative inversion (`remove_mean=True`, `detrend="none"`, `batch_size=64`) in diagnostics and public docs
 - Hardened public rainflow wrappers with explicit finiteness and shape validation and removed dead reversal-extraction state
 - Tightened FDS compatibility parsing to require the current explicit compat schema in all routes
+- Deduplicated the internal Metric alias, added slots to IterativeInversionParams, and removed the unused sdof_pv compatibility wrapper
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests
@@ -81,6 +84,7 @@
 
 ## 0.1.4
 - Added support for metrics `disp/vel/acc` (derived); kept `pv` canonical
+
 
 
 
