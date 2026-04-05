@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import rainflow
 
-from fdscore import synthesize_time_from_psd
+from fdscore import ValidationError, synthesize_time_from_psd
 from fdscore.rainflow_damage import miner_damage_from_matrix, miner_damage_from_signal
 
 
@@ -88,3 +88,19 @@ def test_miner_damage_matrix_matches_reference_rainflow(amplitude_from_range: bo
     )
 
     assert np.allclose(got, ref, rtol=1e-12, atol=1e-15)
+
+
+def test_miner_damage_signal_rejects_nonfinite_input():
+    with pytest.raises(ValidationError):
+        miner_damage_from_signal(np.array([0.0, np.nan, 1.0]), k=3.0, c=10.0)
+
+    with pytest.raises(ValidationError):
+        miner_damage_from_signal(np.array([0.0, np.inf, 1.0]), k=3.0, c=10.0)
+
+
+def test_miner_damage_matrix_rejects_invalid_shape_and_nonfinite_input():
+    with pytest.raises(ValidationError):
+        miner_damage_from_matrix(np.array([0.0, 1.0, 0.0]), k=3.0, c=10.0)
+
+    with pytest.raises(ValidationError):
+        miner_damage_from_matrix(np.array([[0.0, 1.0], [np.nan, 0.0]]), k=3.0, c=10.0)

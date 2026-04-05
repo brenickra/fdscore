@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numba import njit, prange
 
+from .validate import ValidationError
+
 
 @njit(cache=False, fastmath=True)
 def _extract_reversals_values_numba(series: np.ndarray) -> np.ndarray:
@@ -14,11 +16,11 @@ def _extract_reversals_values_numba(series: np.ndarray) -> np.ndarray:
     out = np.empty(n, dtype=np.float64)
     m = 0
 
-    x_last = series[0]
+    first = series[0]
     x = series[1]
-    d_last = x - x_last
+    d_last = x - first
 
-    out[m] = x_last
+    out[m] = first
     m += 1
 
     for i in range(2, n):
@@ -29,7 +31,6 @@ def _extract_reversals_values_numba(series: np.ndarray) -> np.ndarray:
         if d_last * d_next < 0.0:
             out[m] = x
             m += 1
-        x_last = x
         x = x_next
         d_last = d_next
 
@@ -106,9 +107,17 @@ def miner_damage_from_signal(
     c: float,
     amplitude_from_range: bool = True,
 ) -> float:
-    """Public wrapper (Numba-backed)."""
+    """Public wrapper for Miner damage on a single 1D signal.
+
+    This wrapper validates shape and finiteness before calling the Numba kernel.
+    """
     s = np.asarray(signal, dtype=np.float64)
+    if s.ndim != 1:
+        raise ValidationError("signal must be a 1D array.")
+    if not np.all(np.isfinite(s)):
+        raise ValidationError("signal must contain only finite values.")
     return float(_miner_damage_numba(s, float(k), float(c), bool(amplitude_from_range)))
+
 
 
 def miner_damage_from_matrix(
@@ -118,6 +127,13 @@ def miner_damage_from_matrix(
     c: float,
     amplitude_from_range: bool = True,
 ) -> np.ndarray:
-    """Vectorized Miner damage for a matrix of signals (n_signals, n_samples)."""
+    """Vectorized Miner damage for a matrix of signals with shape `(n_signals, n_samples)`.
+
+    This wrapper validates dimensionality and finiteness before calling the Numba kernel.
+    """
     m = np.asarray(signals, dtype=np.float64)
+    if m.ndim != 2:
+        raise ValidationError("signals must be a 2D array with shape (n_signals, n_samples).")
+    if not np.all(np.isfinite(m)):
+        raise ValidationError("signals must contain only finite values.")
     return _miner_damage_matrix_numba(m, float(k), float(c), bool(amplitude_from_range))
