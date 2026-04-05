@@ -5,6 +5,7 @@ from typing import Any, Literal, Optional
 import numpy as np
 
 Metric = Literal["pv", "acc", "vel", "disp"]
+InputMotion = Literal["acc", "vel", "disp"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +105,14 @@ class FDSResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ERSResult:
+    """Extreme response spectrum result."""
+    f: np.ndarray
+    response: np.ndarray
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
@@ -152,6 +161,18 @@ class PSDMetricsResult:
     disp_pk_pk_mm: float
     band_rms_g: dict[str, float] = field(default_factory=dict)
     meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SineDwellSegment:
+    """Single deterministic harmonic dwell segment."""
+
+    freq_hz: float
+    amp: float
+    duration_s: float
+    input_motion: InputMotion = "acc"
+    label: Optional[str] = None
+
 
 @dataclass(frozen=True, slots=True)
 class IterativeInversionParams:
@@ -207,5 +228,3 @@ class IterativeInversionParams:
     post_refine_gamma: float = 0.5
     post_refine_min: float = 0.7
     post_refine_max: float = 2.2
-
-

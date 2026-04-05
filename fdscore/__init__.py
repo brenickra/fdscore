@@ -11,16 +11,25 @@ from .types import (
     PSDParams,
     IterativeInversionParams,
     FDSResult,
+    ERSResult,
     PSDResult,
     FDSTimePlan,
     PSDMetricsResult,
+    SineDwellSegment,
 )
 
 from .validate import ValidationError
 from .grid import build_frequency_grid
 from .fds_ops import scale_fds, sum_fds
+from .ers_ops import envelope_ers
 from .fds_time import compute_fds_time, prepare_fds_time_plan
 from .fds_spectral import compute_fds_spectral_psd, compute_fds_spectral_time
+from .deterministic import (
+    compute_ers_sine,
+    compute_fds_sine,
+    compute_ers_dwell_profile,
+    compute_fds_dwell_profile,
+)
 from .psd_welch import compute_psd_welch
 from .inverse_closed_form import invert_fds_closed_form
 from .inverse_iterative_spectral import invert_fds_iterative_spectral
@@ -34,9 +43,11 @@ __all__ = [
     "PSDParams",
     "IterativeInversionParams",
     "FDSResult",
+    "ERSResult",
     "PSDResult",
     "FDSTimePlan",
     "PSDMetricsResult",
+    "SineDwellSegment",
     "ValidationError",
     "build_frequency_grid",
     "compute_fds_time",
@@ -44,8 +55,13 @@ __all__ = [
     "compute_psd_welch",
     "compute_fds_spectral_psd",
     "compute_fds_spectral_time",
+    "compute_ers_sine",
+    "compute_fds_sine",
+    "compute_ers_dwell_profile",
+    "compute_fds_dwell_profile",
     "scale_fds",
     "sum_fds",
+    "envelope_ers",
     "invert_fds_closed_form",
     "invert_fds_iterative_spectral",
     "invert_fds_iterative_time",

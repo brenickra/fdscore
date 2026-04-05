@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from .types import SNParams, SDOFParams, FDSResult
+from .types import SNParams, SDOFParams, FDSResult, ERSResult
 
 
 class ValidationError(ValueError):
@@ -114,6 +114,59 @@ class FDSCompatSignature:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ERSCompatSignature:
+    engine: str
+    metric: str
+    q: float
+    peak_mode: str
+    ers_kind: str = "response_spectrum"
+
+    @classmethod
+    def from_inputs(
+        cls,
+        *,
+        metric: str,
+        q: float,
+        peak_mode: str,
+        engine: str,
+    ) -> "ERSCompatSignature":
+        return cls(
+            engine=str(engine),
+            metric=str(metric),
+            q=float(q),
+            peak_mode=str(peak_mode),
+            ers_kind="response_spectrum",
+        )
+
+    @classmethod
+    def from_payload(cls, compat) -> "ERSCompatSignature":
+        if not isinstance(compat, dict):
+            raise ValidationError("ERS compat metadata must be a dictionary.")
+
+        required = ("engine", "metric", "q", "peak_mode", "ers_kind")
+        missing = [name for name in required if name not in compat]
+        if missing:
+            raise ValidationError(f"ERS compat metadata is missing required fields: {', '.join(missing)}.")
+
+        return cls(
+            engine=str(compat["engine"]),
+            metric=str(compat["metric"]),
+            q=float(compat["q"]),
+            peak_mode=str(compat["peak_mode"]),
+            ers_kind=str(compat["ers_kind"]),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "engine": self.engine,
+            "metric": self.metric,
+            "q": float(self.q),
+            "peak_mode": self.peak_mode,
+            "ers_kind": self.ers_kind,
+        }
+
+
 def validate_sn(sn: SNParams) -> None:
     if not np.isfinite(sn.slope_k) or sn.slope_k <= 0:
         raise ValidationError("SNParams.slope_k must be finite and > 0.")
@@ -195,8 +248,21 @@ def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str
     ).as_dict()
 
 
+def ers_compat_dict(*, metric: str, q: float, peak_mode: str, engine: str) -> dict[str, object]:
+    return ERSCompatSignature.from_inputs(
+        metric=metric,
+        q=q,
+        peak_mode=peak_mode,
+        engine=engine,
+    ).as_dict()
+
+
 def parse_fds_compat(compat) -> FDSCompatSignature:
     return FDSCompatSignature.from_payload(compat)
+
+
+def parse_ers_compat(compat) -> ERSCompatSignature:
+    return ERSCompatSignature.from_payload(compat)
 
 
 def _ensure_compat_float_match(*, actual, expected: float, field: str, rtol: float = 1e-9, atol: float = 1e-12) -> None:
@@ -227,6 +293,25 @@ def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_ato
     fb = np.asarray(b.f, dtype=float)
     if fa.shape != fb.shape or not np.allclose(fa, fb, rtol=f_rtol, atol=f_atol):
         raise ValidationError("Incompatible frequency grids. Use explicit regridding outside core.")
+
+
+def assert_ers_compatible(a: ERSResult, b: ERSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
+    ca = parse_ers_compat((a.meta or {}).get("compat", {}))
+    cb = parse_ers_compat((b.meta or {}).get("compat", {}))
+
+    if ca.metric != cb.metric:
+        raise ValidationError(f"Incompatible ERS metadata field 'metric': {ca.metric} != {cb.metric}")
+    if ca.q != cb.q:
+        raise ValidationError(f"Incompatible ERS metadata field 'q': {ca.q} != {cb.q}")
+    if ca.peak_mode != cb.peak_mode:
+        raise ValidationError(f"Incompatible ERS metadata field 'peak_mode': {ca.peak_mode} != {cb.peak_mode}")
+    if ca.ers_kind != cb.ers_kind:
+        raise ValidationError(f"Incompatible ERS metadata field 'ers_kind': {ca.ers_kind} != {cb.ers_kind}")
+
+    fa = np.asarray(a.f, dtype=float)
+    fb = np.asarray(b.f, dtype=float)
+    if fa.shape != fb.shape or not np.allclose(fa, fb, rtol=f_rtol, atol=f_atol):
+        raise ValidationError("Incompatible ERS frequency grids. Use explicit regridding outside core.")
 
 
 def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn) -> None:
