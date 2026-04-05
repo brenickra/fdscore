@@ -16,12 +16,14 @@ from fdscore import (
 def _build_params() -> IterativeInversionParams:
     return IterativeInversionParams(
         iters=2,
-        smooth_enabled=False,
+        smooth_enabled=True,
+        smooth_window_bins=10,
+        smooth_every_n_iters=1,
         prior_blend=0.0,
         tail_cap_start_hz=120.0,
         tail_cap_ratio=1.1,
         low_cap_ratio=1.2,
-        post_smooth_window_bins=5,
+        post_smooth_window_bins=6,
         post_smooth_blend=0.4,
         post_refine_iters=1,
         post_refine_gamma=0.4,
@@ -63,6 +65,9 @@ def test_iterative_time_reports_ignored_param_subset():
     assert "tail_cap_ratio" in usage["ignored_fields"]
     assert usage["ignored"]["tail_cap_ratio"] == pytest.approx(params.tail_cap_ratio)
     assert usage["ignored"]["post_smooth_window_bins"] == params.post_smooth_window_bins
+    assert usage["effective"]["smooth_window_bins"] == 11
+    assert "post_smooth_window_bins" not in usage["effective"]
+    assert "Even smoothing windows" in usage["notes"]["smoothing_window_policy"]
 
 
 def test_iterative_spectral_reports_full_param_usage():
@@ -98,3 +103,5 @@ def test_iterative_spectral_reports_full_param_usage():
     assert usage["ignored_fields"] == []
     assert usage["used"]["tail_cap_ratio"] == pytest.approx(params.tail_cap_ratio)
     assert usage["used"]["post_refine_iters"] == params.post_refine_iters
+    assert usage["effective"]["smooth_window_bins"] == 11
+    assert usage["effective"]["post_smooth_window_bins"] == 7

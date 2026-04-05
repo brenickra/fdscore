@@ -6,6 +6,7 @@ from ._inversion_utils import (
     apply_edge_caps,
     blend_log_curves,
     build_edge_taper_weights,
+    effective_smoothing_window_bins,
     iterative_param_usage,
     smooth_psd_log10,
 )
@@ -51,11 +52,12 @@ def invert_fds_iterative_spectral(
     -------
     PSDResult
         `psd` is the synthesized acceleration PSD on `f_psd_hz`.
-        `meta["diagnostics"]` includes best error and per-iteration history.
+        `meta["diagnostics"]` includes best error, per-iteration history, post-stage
+        diagnostics, and convergence metadata.
         `meta["param_usage"]` records which `IterativeInversionParams` fields are
-        used by the spectral engine.
+        used by the spectral engine, including the effective smoothing windows after
+        even-to-odd promotion.
     """
-    # Validate core inputs
     if not np.isfinite(duration_s) or float(duration_s) <= 0:
         raise ValidationError("duration_s must be finite and > 0.")
     if not np.isfinite(p_scale) or float(p_scale) <= 0:
@@ -70,22 +72,19 @@ def invert_fds_iterative_spectral(
     if np.any(P0 <= 0) or not np.all(np.isfinite(P0)):
         raise ValidationError("psd_seed must be finite and strictly positive.")
 
-    # Ensure compat between target and inversion config (strict)
     ensure_compat_inversion(target=target, metric=sdof.metric, q=sdof.q, p_scale=p_scale, sn=sn)
 
     f0 = np.asarray(target.f, dtype=float).reshape(-1)
     zeta = 1.0 / (2.0 * float(sdof.q))
 
-    # Influence matrix alpha uses the same transfer for the chosen metric (generalized)
     H = build_transfer_psd(f_psd_hz=f_psd, f0_hz=f0, zeta=zeta, metric=sdof.metric)
-    B = np.abs(H) ** 2  # (No, Nf)
+    B = np.abs(H) ** 2
 
     B_eff = np.clip(B, 1e-300, None)
     if float(params.alpha_sharpness) != 1.0:
         B_eff = B_eff ** float(params.alpha_sharpness)
-    alpha = B_eff / (B_eff.sum(axis=0) + 1e-30)  # (No, Nf)
+    alpha = B_eff / (B_eff.sum(axis=0) + 1e-30)
 
-    # Prior weights derived from sensitivity (following 03b_inversao_psd_espectral.py)
     sens = B_eff.sum(axis=0)
     sens_n = sens / (np.max(sens) + 1e-30)
     prior_w_sens = np.clip(1.0 - sens_n, 0.0, 1.0) ** float(max(params.prior_power, 0.0))
@@ -97,11 +96,12 @@ def invert_fds_iterative_spectral(
     floor = float(params.floor)
     P = np.clip(P0.copy(), floor, None)
 
-    hist_err = []
+    hist_err: list[float] = []
 
     bestP = P.copy()
     bestErr = float("inf")
     bestF = None
+    best_stage = "main_loop"
 
     def predictor(Pyy: np.ndarray) -> np.ndarray:
         fds = compute_fds_spectral_psd(
@@ -129,7 +129,7 @@ def invert_fds_iterative_spectral(
             s[safe] = (target_fds[safe] / pred[safe]) ** (2.0 / float(sn.slope_k))
         s = np.clip(s, float(params.gain_min), float(params.gain_max))
 
-        u = np.exp(alpha.T @ np.log(s + 1e-30))  # (Nf,)
+        u = np.exp(alpha.T @ np.log(s + 1e-30))
         P *= u ** float(params.gamma)
         P = np.clip(P, floor, None)
 
@@ -168,11 +168,15 @@ def invert_fds_iterative_spectral(
             bestErr = err
             bestP = P.copy()
             bestF = pred_eval.copy()
+            best_stage = "main_loop"
 
-    # Optional post-smooth + refine
     Pfin = bestP
     Ffin = bestF if bestF is not None else predictor(Pfin)
     err_fin = bestErr
+    post_smooth_err: float | None = None
+    post_refine_err: float | None = None
+    post_refine_err_history: list[float] = []
+    post_refine_params_meta: dict[str, float | int] | None = None
 
     if int(params.post_smooth_window_bins) > 1:
         Ps = smooth_psd_log10(Pfin, win=int(params.post_smooth_window_bins), floor=floor)
@@ -187,11 +191,14 @@ def invert_fds_iterative_spectral(
         safe = (target_fds > 0) & (Fp > 0)
         if np.any(safe):
             err_p = float(np.median(np.abs(np.log10(Fp[safe]) - np.log10(target_fds[safe]))))
-            if err_p <= err_fin:
-                Pfin, Ffin, err_fin = Pp, Fp, err_p
+        else:
+            err_p = float("inf")
+        post_smooth_err = err_p
+        if err_p <= err_fin:
+            Pfin, Ffin, err_fin = Pp, Fp, err_p
+            best_stage = "post_smooth"
 
         if int(params.post_refine_iters) > 0:
-            # light refine without additional priors change; reuse same update but fewer iters
             refine_params = IterativeInversionParams(
                 iters=int(params.post_refine_iters),
                 gamma=float(params.post_refine_gamma),
@@ -209,7 +216,21 @@ def invert_fds_iterative_spectral(
                 tail_cap_start_hz=float(params.tail_cap_start_hz),
                 tail_cap_ratio=float(params.tail_cap_ratio),
                 low_cap_ratio=float(params.low_cap_ratio),
+                post_smooth_window_bins=0,
+                post_smooth_blend=0.0,
+                post_refine_iters=0,
+                post_refine_gamma=float(params.post_refine_gamma),
+                post_refine_min=float(params.post_refine_min),
+                post_refine_max=float(params.post_refine_max),
             )
+            post_refine_params_meta = {
+                "iters": int(refine_params.iters),
+                "gamma": float(refine_params.gamma),
+                "gain_min": float(refine_params.gain_min),
+                "gain_max": float(refine_params.gain_max),
+                "smooth_window_bins": int(effective_smoothing_window_bins(refine_params.smooth_window_bins)),
+                "post_refine_iters": int(refine_params.post_refine_iters),
+            }
             Pref = invert_fds_iterative_spectral(
                 target,
                 f_psd_hz=f_psd,
@@ -220,22 +241,32 @@ def invert_fds_iterative_spectral(
                 p_scale=float(p_scale),
                 params=refine_params,
             )
-            # Compare err using FDS reconstruction stored in meta
-            err_ref = float(Pref.meta.get("diagnostics", {}).get("best_err", float("inf")))
-            if err_ref <= err_fin:
+            pref_diag = Pref.meta.get("diagnostics", {})
+            post_refine_err = float(pref_diag.get("best_err", float("inf")))
+            post_refine_err_history = [float(x) for x in pref_diag.get("err_history", [])]
+            if post_refine_err <= err_fin:
                 Pfin = np.asarray(Pref.psd, dtype=float)
-                Ffin = np.asarray(Pref.meta.get("diagnostics", {}).get("best_recon_fds", Ffin), dtype=float)
-                err_fin = err_ref
+                Ffin = np.asarray(pref_diag.get("best_recon_fds", Ffin), dtype=float)
+                err_fin = post_refine_err
+                best_stage = "post_refine"
 
     meta = {
         "diagnostics": {
             "best_err": float(err_fin),
+            "best_stage": best_stage,
             "err_history": hist_err,
+            "err_history_scope": "main_loop_only",
+            "post_smooth_err": post_smooth_err,
+            "post_refine_err": post_refine_err,
+            "post_refine_err_history": post_refine_err_history,
+            "post_refine_params": post_refine_params_meta,
             "best_recon_fds": Ffin,
             "iters": int(params.iters),
+            "predictor_evals_per_iteration": 2,
         },
         "param_usage": iterative_param_usage(engine="spectral", params=params),
         "compat": target.meta.get("compat", {}),
         "provenance": {"source": "invert_fds_iterative_spectral"},
     }
     return PSDResult(f=f_psd, psd=Pfin, meta=meta)
+

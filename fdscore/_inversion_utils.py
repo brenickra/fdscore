@@ -31,12 +31,19 @@ ITERATIVE_SPECTRAL_ONLY_PARAM_FIELDS: tuple[str, ...] = (
 )
 
 
-def moving_average_reflect(x: np.ndarray, win: int) -> np.ndarray:
+def effective_smoothing_window_bins(win: int) -> int:
     win = int(win)
     if win <= 1:
-        return x.copy()
+        return win
     if win % 2 == 0:
-        win += 1
+        return win + 1
+    return win
+
+
+def moving_average_reflect(x: np.ndarray, win: int) -> np.ndarray:
+    win = effective_smoothing_window_bins(win)
+    if win <= 1:
+        return x.copy()
     pad = win // 2
     xp = np.pad(x, (pad, pad), mode="reflect")
     kernel = np.ones(win, dtype=float) / float(win)
@@ -112,10 +119,20 @@ def iterative_param_usage(engine: str, params: object) -> dict[str, object]:
     else:
         raise ValueError(f"Unsupported iterative inversion engine: {engine}")
 
+    effective = {
+        "smooth_window_bins": effective_smoothing_window_bins(getattr(params, "smooth_window_bins")),
+    }
+    if engine == "spectral":
+        effective["post_smooth_window_bins"] = effective_smoothing_window_bins(getattr(params, "post_smooth_window_bins"))
+
     return {
         "engine": engine,
         "used_fields": list(used_fields),
         "ignored_fields": list(ignored_fields),
         "used": {name: getattr(params, name) for name in used_fields},
         "ignored": {name: getattr(params, name) for name in ignored_fields},
+        "effective": effective,
+        "notes": {
+            "smoothing_window_policy": "Even smoothing windows are promoted to the next odd value.",
+        },
     }

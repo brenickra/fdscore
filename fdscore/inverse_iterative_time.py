@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import numpy as np
 
@@ -57,9 +57,10 @@ def invert_fds_iterative_time(
     Returns
     -------
     PSDResult
-        Contains `meta["diagnostics"]` with convergence history and reconstruction.
+        Contains `meta["diagnostics"]` with convergence history and predictor-cost metadata.
         `meta["param_usage"]` records the subset of `IterativeInversionParams`
-        consumed by the time-domain engine and the spectral-only fields it ignores.
+        consumed by the time-domain engine and the effective smoothing window after
+        even-to-odd promotion.
     """
     if not np.isfinite(fs) or float(fs) <= 0:
         raise ValidationError("fs must be finite and > 0.")
@@ -90,7 +91,6 @@ def invert_fds_iterative_time(
     t_target = float(target_duration_s) if target_duration_s is not None else t_syn
     duration_scale = float(t_target / t_syn)
 
-    # Influence matrix alpha from PSD-domain transfer (metric-consistent)
     H = build_transfer_psd(f_psd_hz=f_psd, f0_hz=f0, zeta=zeta, metric=sdof.metric)
     B = np.abs(H) ** 2
     B_eff = np.clip(B, 1e-300, None)
@@ -98,7 +98,6 @@ def invert_fds_iterative_time(
         B_eff = B_eff ** float(params.alpha_sharpness)
     alpha = B_eff / (B_eff.sum(axis=0) + 1e-30)
 
-    # Prior weights (same logic as spectral iterative)
     sens = B_eff.sum(axis=0)
     sens_n = sens / (np.max(sens) + 1e-30)
     prior_w_sens = np.clip(1.0 - sens_n, 0.0, 1.0) ** float(max(params.prior_power, 0.0))
@@ -111,7 +110,7 @@ def invert_fds_iterative_time(
     P = np.clip(P0.copy(), floor, None)
 
     target_fds = np.asarray(target.damage, dtype=float)
-    hist_err = []
+    hist_err: list[float] = []
     bestP = P.copy()
     bestErr = float("inf")
     bestF = None
@@ -174,7 +173,6 @@ def invert_fds_iterative_time(
         if use_prior:
             P = blend_log_curves(cur=P, ref=P0, weight=prior_w, floor=floor)
 
-        # Evaluate error
         pred_eval = predictor(P)
         safe_eval = (target_fds > 0) & (pred_eval > 0)
         if np.any(safe_eval):
@@ -191,9 +189,12 @@ def invert_fds_iterative_time(
     meta = {
         "diagnostics": {
             "best_err": float(bestErr),
+            "best_stage": "main_loop",
             "err_history": hist_err,
+            "err_history_scope": "main_loop_only",
             "best_recon_fds": bestF,
             "iters": int(params.iters),
+            "predictor_evals_per_iteration": 2,
             "n_realizations": int(n_realizations),
             "fs": float(fs),
             "duration_s": float(t_syn),
