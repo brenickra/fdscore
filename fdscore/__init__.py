@@ -30,6 +30,7 @@ from .deterministic import (
     compute_ers_dwell_profile,
     compute_fds_dwell_profile,
 )
+from .ers_time import compute_ers_time
 from .psd_welch import compute_psd_welch
 from .inverse_closed_form import invert_fds_closed_form
 from .inverse_iterative_spectral import invert_fds_iterative_spectral
@@ -56,6 +57,7 @@ __all__ = [
     "compute_fds_spectral_psd",
     "compute_fds_spectral_time",
     "compute_ers_sine",
+    "compute_ers_time",
     "compute_fds_sine",
     "compute_ers_dwell_profile",
     "compute_fds_dwell_profile",
