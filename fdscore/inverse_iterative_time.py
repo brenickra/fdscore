@@ -9,6 +9,10 @@ from .sdof_transfer import build_transfer_psd
 from .fds_time import compute_fds_time
 from .synth_time import synthesize_time_from_psd
 
+_TIME_ITERATIVE_PREDICTOR_DETREND = "none"
+_TIME_ITERATIVE_PREDICTOR_BATCH_SIZE = 64
+_TIME_ITERATIVE_SYNTH_REMOVE_MEAN = True
+
 
 def invert_fds_iterative_time(
     target: FDSResult,
@@ -32,6 +36,10 @@ def invert_fds_iterative_time(
     ---------
     Each iteration synthesizes one or more time histories from the candidate PSD, computes FDS via
     `compute_fds_time(...)`, then updates the PSD multiplicatively using an influence matrix derived from the SDOF transfer.
+
+    The predictor currently uses a fixed internal evaluation policy:
+    - `synthesize_time_from_psd(..., remove_mean=True)`
+    - `compute_fds_time(..., detrend="none", batch_size=64)`
 
     Output is an **acceleration PSD** on the provided `f_psd_hz` grid.
 
@@ -57,7 +65,8 @@ def invert_fds_iterative_time(
     Returns
     -------
     PSDResult
-        Contains `meta["diagnostics"]` with convergence history and predictor-cost metadata.
+        Contains `meta["diagnostics"]` with convergence history, predictor-cost metadata,
+        and the fixed predictor configuration used internally.
         `meta["param_usage"]` records the subset of `IterativeInversionParams`
         consumed by the time-domain engine and the effective smoothing window after
         even-to-odd promotion.
@@ -126,7 +135,7 @@ def invert_fds_iterative_time(
                 duration_s=float(t_syn),
                 seed=s,
                 nfft=nfft,
-                remove_mean=True,
+                remove_mean=_TIME_ITERATIVE_SYNTH_REMOVE_MEAN,
             )
             fds = compute_fds_time(
                 x,
@@ -134,8 +143,8 @@ def invert_fds_iterative_time(
                 sn=sn,
                 sdof=sdof,
                 p_scale=float(p_scale),
-                detrend="none",
-                batch_size=64,
+                detrend=_TIME_ITERATIVE_PREDICTOR_DETREND,
+                batch_size=_TIME_ITERATIVE_PREDICTOR_BATCH_SIZE,
             )
             if acc_dmg is None:
                 acc_dmg = np.asarray(fds.damage, dtype=float).copy()
@@ -195,6 +204,12 @@ def invert_fds_iterative_time(
             "best_recon_fds": bestF,
             "iters": int(params.iters),
             "predictor_evals_per_iteration": 2,
+            "predictor_config": {
+                "synthesize_time_from_psd_remove_mean": _TIME_ITERATIVE_SYNTH_REMOVE_MEAN,
+                "compute_fds_time_detrend": _TIME_ITERATIVE_PREDICTOR_DETREND,
+                "compute_fds_time_batch_size": _TIME_ITERATIVE_PREDICTOR_BATCH_SIZE,
+                "nfft": None if nfft is None else int(nfft),
+            },
             "n_realizations": int(n_realizations),
             "fs": float(fs),
             "duration_s": float(t_syn),

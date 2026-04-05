@@ -11,6 +11,7 @@
 - Hardened spectral PSD sanitization by clamping only tiny negative numerical noise, rejecting materially negative PSD inputs, and turning invalid FLife life values into explicit `ValidationError`s
 - Strengthened iterative inversion diagnostics with explicit stage metadata, effective smoothing-window reporting, and a non-recursive post-refine guard
 - Improved FDS algebra provenance so scaled and summed spectra retain structured input provenance instead of only the first-result trail
+- Exposed the fixed predictor policy used by time-domain iterative inversion (`remove_mean=True`, `detrend="none"`, `batch_size=64`) in diagnostics and public docs
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests

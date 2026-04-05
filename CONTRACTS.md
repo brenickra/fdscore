@@ -200,6 +200,7 @@ Interpretation
   - `post_smooth_window_bins`, `post_smooth_blend`
   - `post_refine_iters`, `post_refine_gamma`, `post_refine_min`, `post_refine_max`
 - Returned `PSDResult.meta["param_usage"]` makes this usage explicit at runtime.
+- Returned `PSDResult.meta["diagnostics"]["predictor_config"]` records the current fixed predictor policy used by the time-domain engine: `remove_mean=True` in synthesis and `detrend="none"`, `batch_size=64` in `compute_fds_time(...)`.
 
 ## Method assumptions and limits
 
@@ -220,5 +221,7 @@ Interpretation
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
 - Time-domain FDS, PSD metrics, closed-form inversion, and time-domain iterative inversion do not require `FLife`.
+
+
 
 

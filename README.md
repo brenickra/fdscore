@@ -103,6 +103,10 @@ they do not consume exactly the same subset of fields.
   and optional post-smooth/post-refine stages.
 - `invert_fds_iterative_time(...)` uses the common update, smoothing, and prior controls, but
   currently ignores tail caps and post-processing/refine fields.
+- Its predictor currently evaluates synthesized histories with
+  `synthesize_time_from_psd(..., remove_mean=True)` followed by
+  `compute_fds_time(..., detrend="none", batch_size=64)`.
+- `PSDResult.meta["diagnostics"]["predictor_config"]` exposes this internal evaluation policy at runtime.
 
 Each inversion result exposes `meta["param_usage"]` so callers can inspect which fields were
 used and which were ignored by the selected engine.
@@ -144,5 +148,7 @@ This distinction is intentional: FDS addition operates directly on spectra defin
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.
+
+
 
 

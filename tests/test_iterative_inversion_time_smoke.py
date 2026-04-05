@@ -39,3 +39,9 @@ def test_iterative_inversion_time_smoke():
     assert np.all(np.isfinite(out.psd))
     assert np.all(out.psd >= 0)
     assert "diagnostics" in (out.meta or {})
+
+    predictor_cfg = out.meta["diagnostics"]["predictor_config"]
+    assert predictor_cfg["synthesize_time_from_psd_remove_mean"] is True
+    assert predictor_cfg["compute_fds_time_detrend"] == "none"
+    assert predictor_cfg["compute_fds_time_batch_size"] == 64
+    assert predictor_cfg["nfft"] is None
