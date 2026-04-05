@@ -31,26 +31,20 @@ class SNCompatSignature:
         if not isinstance(sn_sig, dict):
             raise ValidationError("FDS compat metadata field 'sn' must be a dictionary.")
 
-        if {"k", "Sref", "Nref", "range2amp"}.issubset(sn_sig.keys()):
-            return cls(
-                slope_k=float(sn_sig["k"]),
-                ref_stress=float(sn_sig["Sref"]),
-                ref_cycles=float(sn_sig["Nref"]),
-                amplitude_from_range=bool(sn_sig["range2amp"]),
+        required = ("slope_k", "ref_stress", "ref_cycles", "amplitude_from_range")
+        missing = [name for name in required if name not in sn_sig]
+        if missing:
+            raise ValidationError(
+                "Invalid S-N metadata in FDS compat. Missing required fields: "
+                + ", ".join(missing)
+                + "."
             )
 
-        if {"slope_k", "ref_stress", "ref_cycles", "amplitude_from_range"}.issubset(sn_sig.keys()):
-            return cls(
-                slope_k=float(sn_sig["slope_k"]),
-                ref_stress=float(sn_sig["ref_stress"]),
-                ref_cycles=float(sn_sig["ref_cycles"]),
-                amplitude_from_range=bool(sn_sig["amplitude_from_range"]),
-            )
-
-        raise ValidationError(
-            "Invalid S-N metadata in FDS compat. Expected either legacy keys "
-            "{'k','Sref','Nref','range2amp'} or current keys "
-            "{'slope_k','ref_stress','ref_cycles','amplitude_from_range'}."
+        return cls(
+            slope_k=float(sn_sig["slope_k"]),
+            ref_stress=float(sn_sig["ref_stress"]),
+            ref_cycles=float(sn_sig["ref_cycles"]),
+            amplitude_from_range=bool(sn_sig["amplitude_from_range"]),
         )
 
     def as_dict(self) -> dict[str, float | bool]:
@@ -95,18 +89,18 @@ class FDSCompatSignature:
         if not isinstance(compat, dict):
             raise ValidationError("FDS compat metadata must be a dictionary.")
 
-        required = ("metric", "q", "p_scale", "sn")
+        required = ("engine", "metric", "q", "p_scale", "sn", "fds_kind")
         missing = [name for name in required if name not in compat]
         if missing:
             raise ValidationError(f"FDS compat metadata is missing required fields: {', '.join(missing)}.")
 
         return cls(
-            engine=str(compat.get("engine", "unknown")),
+            engine=str(compat["engine"]),
             metric=str(compat["metric"]),
             q=float(compat["q"]),
             p_scale=float(compat["p_scale"]),
             sn=SNCompatSignature.from_payload(compat["sn"]),
-            fds_kind=str(compat.get("fds_kind", "damage_spectrum")),
+            fds_kind=str(compat["fds_kind"]),
         )
 
     def as_dict(self) -> dict[str, object]:
@@ -129,7 +123,6 @@ def validate_sn(sn: SNParams) -> None:
         raise ValidationError("SNParams.ref_cycles must be finite and > 0.")
 
 
-
 def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
     """Resolve p_scale under the normalized-vs-physical workflow contract."""
     if p_scale is not None:
@@ -147,7 +140,6 @@ def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
     )
 
 
-
 def validate_frequency_vector(f: np.ndarray) -> None:
     if f.ndim != 1:
         raise ValidationError("Frequency vector f must be 1D.")
@@ -160,7 +152,6 @@ def validate_frequency_vector(f: np.ndarray) -> None:
     df = np.diff(f)
     if not np.all(df > 0):
         raise ValidationError("Frequency vector f must be strictly increasing.")
-
 
 
 def validate_sdof(sdof: SDOFParams) -> None:
@@ -180,7 +171,6 @@ def validate_sdof(sdof: SDOFParams) -> None:
         validate_frequency_vector(f)
 
 
-
 def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float = 1e-12) -> np.ndarray:
     if not np.isfinite(fs) or fs <= 0:
         raise ValidationError("Sampling rate fs must be finite and > 0.")
@@ -195,7 +185,6 @@ def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float =
     return f[mask]
 
 
-
 def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str) -> dict[str, object]:
     return FDSCompatSignature.from_inputs(
         sn=sn,
@@ -206,15 +195,8 @@ def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str
     ).as_dict()
 
 
-
-def normalize_sn_compat(sn_sig) -> dict[str, float | bool]:
-    return SNCompatSignature.from_payload(sn_sig).as_dict()
-
-
-
 def parse_fds_compat(compat) -> FDSCompatSignature:
     return FDSCompatSignature.from_payload(compat)
-
 
 
 def _ensure_compat_float_match(*, actual, expected: float, field: str, rtol: float = 1e-9, atol: float = 1e-12) -> None:
@@ -224,7 +206,6 @@ def _ensure_compat_float_match(*, actual, expected: float, field: str, rtol: flo
         raise ValidationError(f"Incompatible {field}: target={actual} is not finite")
     if not np.isclose(actual_f, expected_f, rtol=rtol, atol=atol):
         raise ValidationError(f"Incompatible {field}: target={actual_f} vs inversion={expected_f}")
-
 
 
 def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
@@ -248,7 +229,6 @@ def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_ato
         raise ValidationError("Incompatible frequency grids. Use explicit regridding outside core.")
 
 
-
 def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn) -> None:
     """Validate that a target FDS is compatible with a proposed inversion configuration."""
     if target.meta is None or "compat" not in target.meta:
@@ -263,5 +243,3 @@ def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn
     cur_sig = SNCompatSignature.from_sn(sn)
     if c.sn != cur_sig:
         raise ValidationError("Incompatible SN parameters between target and inversion.")
-
-

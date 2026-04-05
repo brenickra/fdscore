@@ -2,7 +2,7 @@
 
 ## Unreleased
 - Restored PSD metrics integration compatibility with NumPy 1.x while keeping `numpy>=1.24` as the supported floor
-- Normalized legacy S-N compatibility metadata in closed-form inversion so all inversion routes accept the same serialized FDS signatures
+- Centralized current FDS compatibility schema parsing/building so algebra and inversion checks share one typed normalization path
 - Removed the unused frequency-grid argument from the internal compatibility metadata builder and documented the distinct semantics of FDS algebra vs inversion compatibility
 - Relaxed inversion compatibility checks for `q` and `p_scale` to tolerate tiny numeric drift while still rejecting material mismatches
 - Accepted NumPy integer scalar types in `prepare_fds_time_plan(...)` for `n_samples`
@@ -13,7 +13,7 @@
 - Improved FDS algebra provenance so scaled and summed spectra retain structured input provenance instead of only the first-result trail
 - Exposed the fixed predictor policy used by time-domain iterative inversion (`remove_mean=True`, `detrend="none"`, `batch_size=64`) in diagnostics and public docs
 - Hardened public rainflow wrappers with explicit finiteness and shape validation and removed dead reversal-extraction state
-- Centralized the internal FDS compat schema parsing/building so algebra and inversion checks share one typed normalization path
+- Tightened FDS compatibility parsing to require the current explicit compat schema in all routes
 
 ## 0.2.4
 - Added `rainflow` to development dependencies so CI installs the external reference backend for those tests
@@ -81,6 +81,7 @@
 
 ## 0.1.4
 - Added support for metrics `disp/vel/acc` (derived); kept `pv` canonical
+
 
 
 
