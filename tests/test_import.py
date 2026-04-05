@@ -5,5 +5,6 @@ def test_import():
     assert hasattr(fdscore, "prepare_fds_time_plan")
     assert hasattr(fdscore, "compute_psd_metrics")
     assert hasattr(fdscore, "compute_ers_sine")
+    assert hasattr(fdscore, "compute_ers_time")
     assert hasattr(fdscore, "compute_fds_dwell_profile")
     assert hasattr(fdscore, "envelope_ers")
