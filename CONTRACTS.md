@@ -55,6 +55,13 @@ Notes
 - `f` (Hz): oscillator natural frequencies.
 - `damage` (-): Miner damage per oscillator.
 - `meta`: dictionary with at least `meta["compat"]` used for safe algebra/inversion.
+- `meta["compat"]` is a dict-based signature with the fields:
+  - `engine`
+  - `metric`
+  - `q`
+  - `p_scale`
+  - `sn` (`slope_k`, `ref_stress`, `ref_cycles`, `amplitude_from_range`)
+  - `fds_kind`
 
 ### `FDSTimePlan`
 Precomputed transfer plan for repeated time-domain FDS calls.
@@ -221,6 +228,7 @@ Interpretation
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
 - Time-domain FDS, PSD metrics, closed-form inversion, and time-domain iterative inversion do not require `FLife`.
+
 
 
 

@@ -4,7 +4,7 @@ from math import gamma
 import numpy as np
 
 from .types import FDSResult, PSDResult
-from .validate import ValidationError, normalize_sn_compat
+from .validate import ValidationError, parse_fds_compat
 
 EPS = 1e-30
 
@@ -112,33 +112,24 @@ def invert_fds_closed_form(
         raise ValidationError("test_duration_s must be finite and > 0.")
     t_test = float(test_duration_s)
 
-    compat = (fds.meta or {}).get("compat", {})
-    metric = compat.get("metric")
-    if strict_metric and metric != "pv":
+    compat = parse_fds_compat((fds.meta or {}).get("compat", {}))
+    if strict_metric and compat.metric != "pv":
         raise ValidationError("Closed-form inversion supports only metric='pv'.")
 
-    q = compat.get("q", None)
-    p_scale = compat.get("p_scale", None)
-    sn = compat.get("sn", None)
-    if q is None or p_scale is None or sn is None:
-        raise ValidationError("FDS metadata missing required compat fields: q, p_scale, sn.")
-
-    sn_norm = normalize_sn_compat(sn)
-
-    try:
-        b = float(sn_norm["slope_k"])
-        ref_stress = float(sn_norm["ref_stress"])
-        ref_cycles = float(sn_norm["ref_cycles"])
-    except Exception as e:
-        raise ValidationError(f"Invalid S-N metadata in FDS compat: {e}") from e
+    b = float(compat.sn.slope_k)
+    ref_stress = float(compat.sn.ref_stress)
+    ref_cycles = float(compat.sn.ref_cycles)
+    q = float(compat.q)
+    p_scale = float(compat.p_scale)
+    metric = compat.metric
 
     if b <= 0 or ref_stress <= 0 or ref_cycles <= 0:
         raise ValidationError("Invalid S-N parameters (must be > 0).")
 
-    zeta = 1.0 / (2.0 * float(q))
+    zeta = 1.0 / (2.0 * q)
     c_sn = ref_cycles * (ref_stress ** b)
 
-    damage_to_dp = compute_damage_to_dp_factor(p_scale=float(p_scale), b=b, c_sn=c_sn)
+    damage_to_dp = compute_damage_to_dp_factor(p_scale=p_scale, b=b, c_sn=c_sn)
     if damage_to_dp <= 0:
         raise ValidationError("Computed damage_to_dp_factor is invalid (<=0).")
 
@@ -164,10 +155,10 @@ def invert_fds_closed_form(
         "compat": {
             "method": "closed_form_hp",
             "metric": metric,
-            "q": float(q),
+            "q": q,
             "zeta": float(zeta),
             "b": float(b),
-            "p_scale": float(p_scale),
+            "p_scale": p_scale,
             "c_sn": float(c_sn),
         },
         "reconstruction": {
