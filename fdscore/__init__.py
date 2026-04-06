@@ -29,6 +29,8 @@ from .deterministic import (
     compute_fds_sine,
     compute_ers_dwell_profile,
     compute_fds_dwell_profile,
+    compute_ers_sine_sweep,
+    compute_fds_sine_sweep,
 )
 from .ers_time import compute_ers_time
 from .psd_welch import compute_psd_welch
@@ -59,6 +61,8 @@ __all__ = [
     "compute_ers_sine",
     "compute_ers_time",
     "compute_fds_sine",
+    "compute_ers_sine_sweep",
+    "compute_fds_sine_sweep",
     "compute_ers_dwell_profile",
     "compute_fds_dwell_profile",
     "scale_fds",
