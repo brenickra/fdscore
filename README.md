@@ -157,6 +157,37 @@ Mission composition rules are intentionally different:
 - `FDS` composes by damage summation.
 - `ERS` composes by pointwise envelope, not summation.
 
+Approximate sine sweeps are also supported by discretizing the sweep path into
+many short dwell segments:
+
+```python
+from fdscore import compute_ers_sine_sweep, compute_fds_sine_sweep
+
+ers_sweep = compute_ers_sine_sweep(
+    f_start_hz=20.0,
+    f_stop_hz=200.0,
+    amp=2.0,
+    duration_s=180.0,
+    sdof=sdof_ers,
+    spacing="log",
+    n_steps=200,
+)
+
+fds_sweep = compute_fds_sine_sweep(
+    f_start_hz=20.0,
+    f_stop_hz=200.0,
+    amp=2.0,
+    duration_s=180.0,
+    sn=sn,
+    sdof=sdof_fds,
+    spacing="log",
+    n_steps=200,
+)
+```
+
+This is intentionally documented as a dwell-discretized approximation, not as a
+closed-form sweep derivation.
+
 Measured time histories are supported through `compute_ers_time(...)`:
 
 ```python

@@ -212,6 +212,22 @@ Interpretation
 - if ERS and FDS use different metrics, their frequency grid may match, but the
   transfer matrix must still match the chosen ERS metric.
 
+### `compute_ers_sine_sweep(...) -> ERSResult`
+Computes an approximate deterministic ERS for a sine sweep by discretizing the
+sweep path into `n_steps` dwell segments and taking their ERS envelope.
+
+Parameters of interest
+- `spacing`: `"linear" | "log"`
+- `n_steps`: number of dwell segments in the discretized sweep
+
+### `compute_fds_sine_sweep(...) -> FDSResult`
+Computes an approximate deterministic FDS for a sine sweep by discretizing the
+sweep path into `n_steps` dwell segments and summing their damage spectra.
+
+Notes
+- This is an approximation based on dwell discretization.
+- It is not a closed-form sweep damage equation.
+
 ### `compute_fds_dwell_profile(segments, sn, sdof, ...) -> FDSResult`
 Computes mission-level FDS from multiple deterministic dwell segments.
 

@@ -8,6 +8,8 @@
 - Added `compute_ers_time(...)` for measured histories using FFT-domain SDOF response reconstruction
 - Allowed `compute_ers_time(...)` to reuse a compatible `FDSTimePlan` when the metric and sampling setup match
 - Added regression coverage for time-domain ERS scaling, zero-input behavior, plan reuse, and mission envelopes
+- Added approximate sine-sweep ERS and FDS APIs based on dwell discretization
+- Added regression coverage for one-step sweep equivalence, duration scaling, and sweep coverage behavior
 
 
 ## 0.2.5
