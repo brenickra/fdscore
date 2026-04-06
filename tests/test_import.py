@@ -7,4 +7,6 @@ def test_import():
     assert hasattr(fdscore, "compute_ers_sine")
     assert hasattr(fdscore, "compute_ers_time")
     assert hasattr(fdscore, "compute_fds_dwell_profile")
+    assert hasattr(fdscore, "compute_ers_sine_sweep")
+    assert hasattr(fdscore, "compute_fds_sine_sweep")
     assert hasattr(fdscore, "envelope_ers")
