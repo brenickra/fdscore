@@ -15,5 +15,8 @@ def test_import():
     assert hasattr(fdscore, "compute_ers_sine_sweep")
     assert hasattr(fdscore, "compute_fds_sine_sweep")
     assert hasattr(fdscore, "envelope_ers")
+    assert hasattr(fdscore, "envelope_srs")
+    assert hasattr(fdscore, "envelope_pvss")
     assert hasattr(fdscore, "fit_half_sine_to_pvss")
     assert hasattr(fdscore, "synthesize_half_sine_pulse")
+
