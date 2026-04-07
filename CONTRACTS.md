@@ -73,6 +73,8 @@ Notes
   - `q`
   - `peak_mode`
   - `ers_kind`
+- `ers_kind` distinguishes generic ERS (`"response_spectrum"`) from shock-specific wrappers such as
+  `"shock_response_spectrum"` and `"pseudo_velocity_shock_spectrum"`.
 
 ### `FDSTimePlan`
 Precomputed transfer plan for repeated time-domain FDS calls.
@@ -212,6 +214,34 @@ Interpretation
 - if ERS and FDS use different metrics, their frequency grid may match, but the
   transfer matrix must still match the chosen ERS metric.
 
+### `compute_srs_time(x, fs, sdof, ...) -> ERSResult`
+Computes a shock response spectrum using the dedicated recursive shock engine.
+
+Current contract
+- requires `sdof.metric="acc"`
+- supports `peak_mode="abs"|"pos"|"neg"`
+- supports `detrend="linear"|"mean"|"median"|"none"`
+- returns `meta["compat"]["ers_kind"] == "shock_response_spectrum"`
+- does not reuse `FDSTimePlan`
+
+Interpretation
+- this is the dedicated time-domain SRS path for base-acceleration shock histories
+- unlike `compute_ers_time(...)`, it is intended specifically for transient shock analysis
+
+### `compute_pvss_time(x, fs, sdof, ...) -> ERSResult`
+Computes a pseudo-velocity shock spectrum using the dedicated recursive shock engine.
+
+Current contract
+- requires `sdof.metric="pv"`
+- supports `peak_mode="abs"|"pos"|"neg"`
+- supports `detrend="linear"|"mean"|"median"|"none"`
+- returns `meta["compat"]["ers_kind"] == "pseudo_velocity_shock_spectrum"`
+- does not reuse `FDSTimePlan`
+
+Interpretation
+- this is the dedicated time-domain PVSS path for base-acceleration shock histories
+- it shares the same recursive backend philosophy as `compute_srs_time(...)`
+
 ### `compute_ers_sine_sweep(...) -> ERSResult`
 Computes an approximate deterministic ERS for a sine sweep by discretizing the
 sweep path into `n_steps` dwell segments and taking their ERS envelope.
@@ -311,6 +341,9 @@ Interpretation
   only bypasses the guard; it does not generalize the closed-form derivation to other metrics.
 - `FDSTimePlan` stores the full complex transfer matrix `H` with shape
   `(len(f), n_fft_bins)`. This improves reuse performance at the cost of memory.
+- `compute_ers_time(...)` remains the generic FFT-domain ERS implementation.
+- `compute_srs_time(...)` and `compute_pvss_time(...)` intentionally use a separate recursive
+  shock backend so transient-shock behavior can evolve without changing the generic ERS engine.
 
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.

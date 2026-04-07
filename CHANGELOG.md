@@ -10,6 +10,8 @@
 - Added regression coverage for time-domain ERS scaling, zero-input behavior, plan reuse, and mission envelopes
 - Added approximate sine-sweep ERS and FDS APIs based on dwell discretization
 - Added regression coverage for one-step sweep equivalence, duration scaling, and sweep coverage behavior
+- Added dedicated recursive shock wrappers `compute_srs_time(...)` and `compute_pvss_time(...)`
+- Added regression coverage for public shock wrappers, including metric guards, sidedness guards, and exact agreement with the private recursive engine
 
 
 ## 0.2.5
