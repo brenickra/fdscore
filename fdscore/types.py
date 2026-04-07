@@ -113,6 +113,14 @@ class ERSResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ShockSpectrumPair:
+    """Positive/negative sided shock-spectrum pair."""
+    neg: ERSResult
+    pos: ERSResult
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
