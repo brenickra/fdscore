@@ -153,6 +153,19 @@ class RollingERSResult:
 
 
 @dataclass(frozen=True, slots=True)
+class HalfSinePulse:
+    """Parameterized half-sine acceleration pulse."""
+    amplitude: float
+    duration_s: float
+    polarity: Literal["pos", "neg"] = "pos"
+    meta: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def signed_amplitude(self) -> float:
+        return float(self.amplitude) if self.polarity == "pos" else -float(self.amplitude)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
@@ -268,3 +281,4 @@ class IterativeInversionParams:
     post_refine_gamma: float = 0.5
     post_refine_min: float = 0.7
     post_refine_max: float = 2.2
+
