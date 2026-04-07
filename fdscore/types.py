@@ -113,6 +113,59 @@ class ERSResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ShockSpectrumPair:
+    """Positive/negative sided shock-spectrum pair."""
+    neg: ERSResult
+    pos: ERSResult
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ShockEvent:
+    """Single detected shock event in a 1D time history."""
+    peak_index: int
+    start_index: int
+    stop_index: int
+    peak_time_s: float
+    start_time_s: float
+    stop_time_s: float
+    peak_value: float
+    peak_abs: float
+    polarity: Literal["pos", "neg"]
+
+
+@dataclass(frozen=True, slots=True)
+class ShockEventSet:
+    """Detected shock events and the settings used to define them."""
+    events: tuple[ShockEvent, ...]
+    fs: float
+    n_samples: int
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class RollingERSResult:
+    """Event-window response spectra stacked over multiple time windows."""
+    f: np.ndarray
+    t_center_s: np.ndarray
+    response: np.ndarray
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class HalfSinePulse:
+    """Parameterized half-sine acceleration pulse."""
+    amplitude: float
+    duration_s: float
+    polarity: Literal["pos", "neg"] = "pos"
+    meta: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def signed_amplitude(self) -> float:
+        return float(self.amplitude) if self.polarity == "pos" else -float(self.amplitude)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
@@ -228,3 +281,4 @@ class IterativeInversionParams:
     post_refine_gamma: float = 0.5
     post_refine_min: float = 0.7
     post_refine_max: float = 2.2
+

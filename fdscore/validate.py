@@ -248,12 +248,13 @@ def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str
     ).as_dict()
 
 
-def ers_compat_dict(*, metric: str, q: float, peak_mode: str, engine: str) -> dict[str, object]:
-    return ERSCompatSignature.from_inputs(
-        metric=metric,
-        q=q,
-        peak_mode=peak_mode,
-        engine=engine,
+def ers_compat_dict(*, metric: str, q: float, peak_mode: str, engine: str, ers_kind: str = "response_spectrum") -> dict[str, object]:
+    return ERSCompatSignature(
+        engine=str(engine),
+        metric=str(metric),
+        q=float(q),
+        peak_mode=str(peak_mode),
+        ers_kind=str(ers_kind),
     ).as_dict()
 
 
@@ -328,3 +329,4 @@ def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn
     cur_sig = SNCompatSignature.from_sn(sn)
     if c.sn != cur_sig:
         raise ValidationError("Incompatible SN parameters between target and inversion.")
+

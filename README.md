@@ -14,6 +14,7 @@ building blocks for engineering applications.
 - PSD summary metrics including RMS, Gaussian peak estimates, and velocity/displacement metrics
 - Deterministic sine and dwell-profile FDS workflows
 - Deterministic ERS workflows and mission-level ERS envelope composition
+- Dedicated time-domain shock workflows for SRS, PVSS, event detection, rolling spectra, half-sine fitting, and shock-specific envelopes
 - Normalized (`k`-only) and physical (`S-N + p_scale`) workflow support
 
 ## Installation
@@ -199,6 +200,81 @@ ers_time = compute_ers_time(x, fs, sdof=sdof_ers, detrend="linear", batch_size=6
 If the metric and sampling setup match, `compute_ers_time(...)` can also reuse a
 compatible `FDSTimePlan`, since the plan stores only the FFT-domain transfer matrix.
 
+Shock-oriented time histories are supported through dedicated wrappers built on a
+recursive IIR SDOF engine:
+
+```python
+from fdscore import compute_srs_time, compute_pvss_time
+
+sdof_srs = SDOFParams(q=10.0, fmin=5.0, fmax=2000.0, df=5.0, metric="acc")
+sdof_pvss = SDOFParams(q=10.0, fmin=5.0, fmax=2000.0, df=5.0, metric="pv")
+
+srs = compute_srs_time(x, fs, sdof=sdof_srs, detrend="median", peak_mode="abs")
+pvss = compute_pvss_time(x, fs, sdof=sdof_pvss, detrend="median", peak_mode="both")
+```
+
+Notes for the shock wrappers:
+
+- `compute_srs_time(...)` requires `sdof.metric="acc"`.
+- `compute_pvss_time(...)` requires `sdof.metric="pv"`.
+- They support `peak_mode="abs"|"pos"|"neg"|"both"`.
+- `peak_mode="both"` returns `ShockSpectrumPair` with explicit `neg` and `pos` spectra.
+- They do not reuse `FDSTimePlan`; they use a separate recursive backend intended for transient shock analysis.
+- For short extracted shock windows, `detrend="median"` is often the most robust starting point.
+
+Detected-event workflows are available for measured shock histories:
+
+```python
+from fdscore import detect_shock_events, compute_rolling_srs_time
+
+events = detect_shock_events(
+    x,
+    fs,
+    detrend="median",
+    threshold_reference="rms",
+    threshold_multiplier=5.0,
+    min_separation_s=0.050,
+    window_s=0.040,
+)
+
+rolling_srs = compute_rolling_srs_time(
+    x,
+    fs,
+    sdof=sdof_srs,
+    events=events,
+    detrend="none",
+    peak_mode="abs",
+)
+```
+
+This rolling API is currently event-window based: each detected event window produces one
+row in the returned `RollingERSResult.response` matrix.
+
+Mission-style shock composition is available through explicit envelope helpers:
+
+```python
+from fdscore import envelope_srs, envelope_pvss
+
+srs_env = envelope_srs([srs_run_1, srs_run_2, srs_run_3])
+pvss_env = envelope_pvss([pvss_run_1, pvss_run_2, pvss_run_3])
+```
+
+For `peak_mode="both"`, these helpers envelope the `neg` and `pos` sides separately and return
+another `ShockSpectrumPair`.
+
+PVSS can also be reduced to an equivalent half-sine pulse for requirement simplification or
+bench setup studies:
+
+```python
+from fdscore import compute_pvss_time, fit_half_sine_to_pvss, synthesize_half_sine_pulse
+
+pvss_abs = compute_pvss_time(x, fs, sdof=sdof_pvss, detrend="median", peak_mode="abs")
+pulse = fit_half_sine_to_pvss(pvss_abs)
+x_half_sine = synthesize_half_sine_pulse(pulse, fs=20000.0, total_duration_s=0.100, t_start_s=0.010)
+```
+
+This half-sine fit is an enveloping approximation derived from the PVSS. It is not intended to
+recover an original measured pulse exactly.
 ## Compatibility semantics
 
 `fdscore` uses compatibility in two distinct ways:
@@ -224,10 +300,16 @@ This distinction is intentional: FDS addition operates directly on spectra defin
 - `FDSTimePlan` trades memory for speed by storing the full complex transfer matrix `H`.
   Memory scales roughly as `len(f0) * (n_fft_bins) * 16 bytes` for `complex128`. For example,
   400 oscillators and a 4 s signal at 1 kHz correspond to about 12 MB for the plan matrix alone.
+- `compute_ers_time(...)` remains the generic FFT-domain ERS engine.
+- `compute_srs_time(...)` and `compute_pvss_time(...)` use a dedicated recursive shock backend.
+  This keeps transient-shock behavior separate from the generic ERS path and avoids forcing shock
+  assumptions onto the rest of the library.
 
 ## API reference
 
 Public contracts and data structures are documented in `CONTRACTS.md`.
+
+
 
 
 
