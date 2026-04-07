@@ -10,3 +10,4 @@ def test_import():
     assert hasattr(fdscore, "compute_ers_sine_sweep")
     assert hasattr(fdscore, "compute_fds_sine_sweep")
     assert hasattr(fdscore, "envelope_ers")
+
