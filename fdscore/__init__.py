@@ -29,6 +29,7 @@ from .validate import ValidationError
 from .grid import build_frequency_grid
 from .fds_ops import scale_fds, sum_fds
 from .ers_ops import envelope_ers
+from .shock_ops import envelope_srs, envelope_pvss
 from .fds_time import compute_fds_time, prepare_fds_time_plan
 from .fds_spectral import compute_fds_spectral_psd, compute_fds_spectral_time
 from .deterministic import (
@@ -91,6 +92,8 @@ __all__ = [
     "scale_fds",
     "sum_fds",
     "envelope_ers",
+    "envelope_srs",
+    "envelope_pvss",
     "invert_fds_closed_form",
     "invert_fds_iterative_spectral",
     "invert_fds_iterative_time",
