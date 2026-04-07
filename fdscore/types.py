@@ -121,6 +121,29 @@ class ShockSpectrumPair:
 
 
 @dataclass(frozen=True, slots=True)
+class ShockEvent:
+    """Single detected shock event in a 1D time history."""
+    peak_index: int
+    start_index: int
+    stop_index: int
+    peak_time_s: float
+    start_time_s: float
+    stop_time_s: float
+    peak_value: float
+    peak_abs: float
+    polarity: Literal["pos", "neg"]
+
+
+@dataclass(frozen=True, slots=True)
+class ShockEventSet:
+    """Detected shock events and the settings used to define them."""
+    events: tuple[ShockEvent, ...]
+    fs: float
+    n_samples: int
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
