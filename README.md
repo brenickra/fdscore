@@ -266,8 +266,9 @@ PVSS can also be reduced to an equivalent half-sine pulse for requirement simpli
 bench setup studies:
 
 ```python
-from fdscore import fit_half_sine_to_pvss, synthesize_half_sine_pulse
+from fdscore import compute_pvss_time, fit_half_sine_to_pvss, synthesize_half_sine_pulse
 
+pvss_abs = compute_pvss_time(x, fs, sdof=sdof_pvss, detrend="median", peak_mode="abs")
 pulse = fit_half_sine_to_pvss(pvss_abs)
 x_half_sine = synthesize_half_sine_pulse(pulse, fs=20000.0, total_duration_s=0.100, t_start_s=0.010)
 ```
