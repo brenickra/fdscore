@@ -15,6 +15,7 @@ from .types import (
     ShockSpectrumPair,
     ShockEvent,
     ShockEventSet,
+    RollingERSResult,
     PSDResult,
     FDSTimePlan,
     PSDMetricsResult,
@@ -38,6 +39,7 @@ from .deterministic import (
 from .ers_time import compute_ers_time
 from .shock import compute_srs_time, compute_pvss_time
 from .shock_events import detect_shock_events
+from .shock_rolling import compute_rolling_srs_time, compute_rolling_pvss_time
 from .psd_welch import compute_psd_welch
 from .inverse_closed_form import invert_fds_closed_form
 from .inverse_iterative_spectral import invert_fds_iterative_spectral
@@ -55,6 +57,7 @@ __all__ = [
     "ShockSpectrumPair",
     "ShockEvent",
     "ShockEventSet",
+    "RollingERSResult",
     "PSDResult",
     "FDSTimePlan",
     "PSDMetricsResult",
@@ -71,6 +74,8 @@ __all__ = [
     "compute_srs_time",
     "compute_pvss_time",
     "detect_shock_events",
+    "compute_rolling_srs_time",
+    "compute_rolling_pvss_time",
     "compute_fds_sine",
     "compute_ers_sine_sweep",
     "compute_fds_sine_sweep",

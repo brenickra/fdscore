@@ -144,6 +144,15 @@ class ShockEventSet:
 
 
 @dataclass(frozen=True, slots=True)
+class RollingERSResult:
+    """Event-window response spectra stacked over multiple time windows."""
+    f: np.ndarray
+    t_center_s: np.ndarray
+    response: np.ndarray
+    meta: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
