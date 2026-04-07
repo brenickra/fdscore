@@ -76,6 +76,57 @@ Notes
 - `ers_kind` distinguishes generic ERS (`"response_spectrum"`) from shock-specific wrappers such as
   `"shock_response_spectrum"` and `"pseudo_velocity_shock_spectrum"`.
 
+### `ShockSpectrumPair`
+Positive/negative sided shock-spectrum pair.
+
+Fields
+- `neg`: `ERSResult` for the negative-side magnitude spectrum.
+- `pos`: `ERSResult` for the positive-side magnitude spectrum.
+- `meta`: pair-level metadata, typically carrying `peak_mode="both"` and provenance.
+
+Notes
+- Used by `compute_srs_time(...)` and `compute_pvss_time(...)` when `peak_mode="both"`.
+- The sides remain explicit; they are not collapsed into a single 2D `ERSResult`.
+
+### `ShockEvent`
+One detected event in a 1D shock time history.
+
+Fields
+- `peak_index`, `start_index`, `stop_index`
+- `peak_time_s`, `start_time_s`, `stop_time_s`
+- `peak_value`: signed peak value in the preprocessed signal.
+- `peak_abs`: absolute peak magnitude.
+- `polarity`: `"pos" | "neg"`
+
+### `ShockEventSet`
+Detected event collection and its detector settings.
+
+Fields
+- `events`: tuple of `ShockEvent`
+- `fs`: sampling rate used during detection
+- `n_samples`: source signal length used during detection
+- `meta`: detector settings and provenance
+
+### `RollingERSResult`
+Event-window response spectra stacked over multiple windows.
+
+Fields
+- `f` (Hz): oscillator natural frequencies.
+- `t_center_s` (s): center time for each event/window.
+- `response`: 2D array with shape `(n_windows, n_freq)`.
+- `meta`: rolling-workflow metadata.
+
+### `HalfSinePulse`
+Parameterized half-sine acceleration pulse.
+
+Fields
+- `amplitude` (float, >0): unsigned acceleration amplitude.
+- `duration_s` (float, >0): pulse duration.
+- `polarity`: `"pos" | "neg"`
+- `meta`: fit/synthesis metadata.
+
+Derived property
+- `signed_amplitude`: signed amplitude implied by `polarity`.
 ### `FDSTimePlan`
 Precomputed transfer plan for repeated time-domain FDS calls.
 
@@ -214,12 +265,12 @@ Interpretation
 - if ERS and FDS use different metrics, their frequency grid may match, but the
   transfer matrix must still match the chosen ERS metric.
 
-### `compute_srs_time(x, fs, sdof, ...) -> ERSResult`
+### `compute_srs_time(x, fs, sdof, ...) -> ERSResult | ShockSpectrumPair`
 Computes a shock response spectrum using the dedicated recursive shock engine.
 
 Current contract
 - requires `sdof.metric="acc"`
-- supports `peak_mode="abs"|"pos"|"neg"`
+- supports `peak_mode="abs"|"pos"|"neg"|"both"`
 - supports `detrend="linear"|"mean"|"median"|"none"`
 - returns `meta["compat"]["ers_kind"] == "shock_response_spectrum"`
 - does not reuse `FDSTimePlan`
@@ -228,12 +279,12 @@ Interpretation
 - this is the dedicated time-domain SRS path for base-acceleration shock histories
 - unlike `compute_ers_time(...)`, it is intended specifically for transient shock analysis
 
-### `compute_pvss_time(x, fs, sdof, ...) -> ERSResult`
+### `compute_pvss_time(x, fs, sdof, ...) -> ERSResult | ShockSpectrumPair`
 Computes a pseudo-velocity shock spectrum using the dedicated recursive shock engine.
 
 Current contract
 - requires `sdof.metric="pv"`
-- supports `peak_mode="abs"|"pos"|"neg"`
+- supports `peak_mode="abs"|"pos"|"neg"|"both"`
 - supports `detrend="linear"|"mean"|"median"|"none"`
 - returns `meta["compat"]["ers_kind"] == "pseudo_velocity_shock_spectrum"`
 - does not reuse `FDSTimePlan`
@@ -242,6 +293,81 @@ Interpretation
 - this is the dedicated time-domain PVSS path for base-acceleration shock histories
 - it shares the same recursive backend philosophy as `compute_srs_time(...)`
 
+### `detect_shock_events(x, fs, ...) -> ShockEventSet`
+Detects shock-like events in a 1D time history.
+
+Current contract
+- 1D only
+- supports `detrend="linear"|"mean"|"median"|"none"`
+- supports `polarity="abs"|"pos"|"neg"`
+- threshold can be defined either by:
+  - explicit `threshold_value`, or
+  - `threshold_reference="rms"|"std"|"peak"` with `threshold_multiplier`
+- `min_separation_s` controls the minimum distance between accepted events
+- `window_s` defines the event window used later by rolling shock calculations
+
+Interpretation
+- this is intended as the event-selection stage for shock-window workflows
+- it does not classify event type; it only locates and windows candidate events
+
+### `compute_rolling_srs_time(x, fs, sdof, events, ...) -> RollingERSResult`
+Computes SRS on each detected event window.
+
+Current contract
+- requires `sdof.metric="acc"`
+- requires `events.fs == fs` and `events.n_samples == len(x)`
+- currently supports `peak_mode="abs"|"pos"|"neg"`
+- rolling is event-window based, not fixed-stride
+
+### `compute_rolling_pvss_time(x, fs, sdof, events, ...) -> RollingERSResult`
+Computes PVSS on each detected event window.
+
+Current contract
+- requires `sdof.metric="pv"`
+- requires `events.fs == fs` and `events.n_samples == len(x)`
+- currently supports `peak_mode="abs"|"pos"|"neg"`
+- rolling is event-window based, not fixed-stride
+
+### `fit_half_sine_to_pvss(pvss, ...) -> HalfSinePulse`
+Fits an enveloping half-sine acceleration pulse from a PVSS result.
+
+Current contract
+- input must be an `ERSResult`
+- requires `meta["compat"]["metric"] == "pv"`
+- requires `meta["compat"]["ers_kind"] == "pseudo_velocity_shock_spectrum"`
+- `polarity` selects the sign of the returned pulse, not the fitted amplitude magnitude
+
+Interpretation
+- this is an enveloping approximation derived from PVSS
+- it is intended for simplification and comparative studies, not exact recovery of the original measured pulse
+
+### `synthesize_half_sine_pulse(pulse, fs, ...) -> ndarray`
+Synthesizes a 1D half-sine acceleration pulse.
+
+Current contract
+- `pulse` must be `HalfSinePulse`
+- supports `total_duration_s` and `t_start_s`
+- output is a 1D numpy array in the same acceleration units implied by `pulse.amplitude`
+
+### `envelope_srs(results)`
+Computes a pointwise envelope across compatible SRS results.
+
+Current contract
+- accepts either:
+  - a sequence of `ERSResult` one-sided SRS values, or
+  - a sequence of `ShockSpectrumPair` values for `peak_mode="both"`
+- mixing the two forms is rejected
+- requires `ers_kind == "shock_response_spectrum"`
+
+### `envelope_pvss(results)`
+Computes a pointwise envelope across compatible PVSS results.
+
+Current contract
+- accepts either:
+  - a sequence of `ERSResult` one-sided PVSS values, or
+  - a sequence of `ShockSpectrumPair` values for `peak_mode="both"`
+- mixing the two forms is rejected
+- requires `ers_kind == "pseudo_velocity_shock_spectrum"`
 ### `compute_ers_sine_sweep(...) -> ERSResult`
 Computes an approximate deterministic ERS for a sine sweep by discretizing the
 sweep path into `n_steps` dwell segments and taking their ERS envelope.
@@ -348,6 +474,8 @@ Interpretation
 ## External dependencies
 - Spectral FDS and spectral iterative inversion require `FLife`.
 - Time-domain FDS, PSD metrics, closed-form inversion, and time-domain iterative inversion do not require `FLife`.
+
+
 
 
 

@@ -10,8 +10,11 @@
 - Added regression coverage for time-domain ERS scaling, zero-input behavior, plan reuse, and mission envelopes
 - Added approximate sine-sweep ERS and FDS APIs based on dwell discretization
 - Added regression coverage for one-step sweep equivalence, duration scaling, and sweep coverage behavior
-- Added dedicated recursive shock wrappers `compute_srs_time(...)` and `compute_pvss_time(...)`
+- Added dedicated recursive shock wrappers `compute_srs_time(...)` and `compute_pvss_time(...)` with support for one-sided and both-sided outputs
 - Added regression coverage for public shock wrappers, including metric guards, sidedness guards, and exact agreement with the private recursive engine
+- Added shock event detection and event-window rolling SRS/PVSS workflows
+- Added PVSS-based half-sine fitting and half-sine pulse synthesis helpers
+- Added explicit shock envelope helpers `envelope_srs(...)` and `envelope_pvss(...)`
 
 
 ## 0.2.5
@@ -96,10 +99,3 @@
 
 ## 0.1.4
 - Added support for metrics `disp/vel/acc` (derived); kept `pv` canonical
-
-
-
-
-
-
-
