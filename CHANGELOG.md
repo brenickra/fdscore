@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Expanded CI coverage to Python 3.10, 3.11, and 3.12 while keeping the main editable-install test run
+- Added release-artifact validation in CI for both wheel and sdist installs, added a clean-env `spectral` smoke job, and excluded `examples/__pycache__` from the sdist
 - Added deterministic sine and dwell-profile FDS APIs
 - Added deterministic ERS APIs and ERS envelope composition
 - Added `ERSResult` and `SineDwellSegment` public dataclasses

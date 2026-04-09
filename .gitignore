@@ -24,3 +24,5 @@ htmlcov/
 
 tools/experiments/_outputs_gaussian_metric_check/
 showcase/
+
+release/

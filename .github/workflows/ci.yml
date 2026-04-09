@@ -7,14 +7,73 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - name: Install package
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .[dev]
       - name: Run tests
         run: pytest -q
+
+  artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build
+      - name: Smoke test wheel install
+        run: |
+          python -m venv "$RUNNER_TEMP/fdscore-wheel-venv"
+          source "$RUNNER_TEMP/fdscore-wheel-venv/bin/activate"
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          pushd "$RUNNER_TEMP" >/dev/null
+          python - <<'PY'
+          import fdscore
+          assert hasattr(fdscore, "compute_fds_time")
+          assert hasattr(fdscore, "compute_pvss_time")
+          print(fdscore.__file__)
+          PY
+          popd >/dev/null
+      - name: Smoke test sdist install
+        run: |
+          python -m venv "$RUNNER_TEMP/fdscore-sdist-venv"
+          source "$RUNNER_TEMP/fdscore-sdist-venv/bin/activate"
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.tar.gz
+          pushd "$RUNNER_TEMP" >/dev/null
+          python - <<'PY'
+          import fdscore
+          assert hasattr(fdscore, "compute_fds_time")
+          assert hasattr(fdscore, "compute_pvss_time")
+          print(fdscore.__file__)
+          PY
+          popd >/dev/null
+
+  spectral:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install spectral extra
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .[spectral] pytest
+      - name: Run spectral smoke test
+        run: pytest -q tests/test_spectral_smoke.py

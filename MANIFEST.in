@@ -3,3 +3,4 @@ include CHANGELOG.md
 include CONTRACTS.md
 include LICENSE
 graft examples
+prune examples/__pycache__
