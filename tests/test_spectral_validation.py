@@ -3,7 +3,7 @@ import pytest
 
 import fdscore.fds_spectral as spectral_mod
 import fdscore.psd_welch as welch_mod
-from fdscore import PSDParams, SDOFParams, SNParams, ValidationError, compute_fds_spectral_psd, compute_psd_welch
+from fdscore import PSDParams, SDOFParams, SNParams, ValidationError, compute_fds_spectral_psd, compute_fds_spectral_time, compute_psd_welch
 
 
 def test_compute_fds_spectral_psd_rejects_material_negative_input():
@@ -100,3 +100,25 @@ def test_compute_fds_spectral_psd_rejects_mixed_sdof_grid_inputs():
 
     with pytest.raises(ValidationError, match=r"either sdof\.f OR \(fmin, fmax, df\), not both"):
         compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
+
+
+def test_compute_fds_spectral_psd_rejects_invalid_sdof_metric():
+    f = np.linspace(1.0, 100.0, 100)
+    psd = np.full_like(f, 1e-4)
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="force")
+
+    with pytest.raises(ValidationError, match=r"sdof\.metric must be one of"):
+        compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
+
+
+def test_compute_fds_spectral_time_rejects_twosided_welch_request():
+    fs = 256.0
+    t = np.arange(0.0, 2.0, 1.0 / fs)
+    x = 0.1 * np.sin(2 * np.pi * 20 * t)
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="pv")
+    psd_params = PSDParams(method="welch", window="hann", detrend="constant", onesided=False)
+
+    with pytest.raises(ValidationError, match=r"requires PSDParams\.onesided=True"):
+        compute_fds_spectral_time(x, fs, sn=sn, sdof=sdof, psd=psd_params, p_scale=1.0)

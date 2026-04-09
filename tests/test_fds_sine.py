@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from fdscore import SNParams, SDOFParams, compute_ers_sine, compute_fds_sine
+from fdscore import SNParams, SDOFParams, ValidationError, compute_ers_sine, compute_fds_sine
 
 
 def test_compute_fds_sine_matches_manual_damage_from_response_amplitude():
@@ -42,3 +43,18 @@ def test_compute_fds_sine_respects_amplitude_vs_range_convention():
     fds_rng = compute_fds_sine(freq_hz=30.0, amp=1.2, duration_s=8.0, sn=sn_rng, sdof=sdof)
 
     assert np.allclose(fds_rng.damage, (2.0 ** sn_amp.slope_k) * fds_amp.damage)
+
+
+def test_compute_ers_sine_rejects_invalid_sdof_metric():
+    sdof = SDOFParams(q=10.0, metric="force", fmin=10.0, fmax=100.0, df=10.0)
+
+    with pytest.raises(ValidationError, match=r"sdof\.metric must be one of"):
+        compute_ers_sine(freq_hz=25.0, amp=3.0, sdof=sdof, input_motion="acc")
+
+
+def test_compute_fds_sine_rejects_invalid_sdof_metric():
+    sn = SNParams.normalized(slope_k=4.0)
+    sdof = SDOFParams(q=10.0, metric="force", fmin=10.0, fmax=100.0, df=10.0)
+
+    with pytest.raises(ValidationError, match=r"sdof\.metric must be one of"):
+        compute_fds_sine(freq_hz=25.0, amp=3.0, duration_s=12.0, sn=sn, sdof=sdof, input_motion="acc")

@@ -70,6 +70,8 @@ def _response_amplitude_sine(
     input_motion: str,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     validate_sdof(sdof)
+    if sdof.metric not in ("pv", "disp", "vel", "acc"):
+        raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
     freq_hz = _validate_harmonic_scalar(name="freq_hz", value=freq_hz, positive=True)
     amp = _validate_harmonic_scalar(name="amp", value=amp, positive=False)
     input_motion = _validate_input_motion(input_motion)

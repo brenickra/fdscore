@@ -113,3 +113,22 @@ def test_compute_psd_metrics_exposes_effective_cycle_floor_usage():
     assert peak_meta["effective_cycles_raw"] < np.e
     assert np.isclose(m.effective_cycles, np.e, rtol=1e-12, atol=1e-12)
 
+
+def test_compute_psd_metrics_clamps_tiny_negative_numerical_noise():
+    f = np.linspace(0.0, 20.0, 201)
+    psd = np.full_like(f, 1e-4)
+    psd[10] = -1e-15
+
+    m = compute_psd_metrics(psd, f_hz=f, acc_unit="g")
+
+    assert np.isfinite(m.rms_acc_g)
+
+
+def test_compute_psd_metrics_rejects_material_negative_psd():
+    f = np.linspace(0.0, 20.0, 201)
+    psd = np.full_like(f, 1e-4)
+    psd[10] = -1e-3
+
+    with pytest.raises(ValidationError, match="PSD input"):
+        compute_psd_metrics(psd, f_hz=f, acc_unit="g")
+

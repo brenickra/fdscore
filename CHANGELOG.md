@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Hardened spectral-route metric and one-sided PSD guards, and aligned PSD metrics negative-PSD validation with shared tolerance policy
 - Hardened reused time-plan validation, FDS/ERS shape composition guards, and inversion target grid alignment checks
 - Hardened public validation for S-N boolean flags, mixed SDOF grid definitions, rainflow Miner wrapper parameters, and inversion routes with invalid `q`
 - Expanded CI coverage to Python 3.10, 3.11, and 3.12 while keeping the main editable-install test run

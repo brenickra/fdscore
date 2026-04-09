@@ -73,6 +73,8 @@ def compute_fds_spectral_psd(
     """
     validate_sn(sn)
     validate_sdof(sdof)
+    if sdof.metric not in ("pv", "disp", "vel", "acc"):
+        raise ValidationError("sdof.metric must be one of: 'pv','disp','vel','acc'.")
 
     if not np.isfinite(duration_s) or float(duration_s) <= 0:
         raise ValidationError("duration_s must be finite and > 0.")
@@ -143,6 +145,9 @@ def compute_fds_spectral_time(
     Differences relative to `compute_fds_time(...)` or to `compute_fds_spectral_psd(...)`
     with an explicit reference PSD are therefore expected for finite-length signals.
     """
+    if not bool(psd.onesided):
+        raise ValidationError("compute_fds_spectral_time requires PSDParams.onesided=True.")
+
     if duration_s is None:
         x = np.asarray(x, dtype=float)
         if x.ndim != 1:

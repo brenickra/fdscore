@@ -6,6 +6,7 @@ import numpy as np
 
 from .types import PSDResult, PSDMetricsResult
 from .validate import ValidationError
+from ._psd_utils import clip_tiny_negative_psd_or_raise
 
 G0 = 9.80665
 EULER_GAMMA = 0.5772156649015329
@@ -165,7 +166,7 @@ def compute_psd_metrics(
     if np.any(freq < 0):
         raise ValidationError("Frequency vector must be >= 0.")
 
-    p = np.maximum(p, 0.0)
+    p = clip_tiny_negative_psd_or_raise(p, label="PSD input")
     bands = _validate_bands_hz(bands_hz)
     band_keys = [_make_band_key(f_lo, f_hi) for f_lo, f_hi in bands]
     if len(set(band_keys)) != len(band_keys):
