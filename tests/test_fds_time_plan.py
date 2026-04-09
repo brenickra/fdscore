@@ -78,3 +78,20 @@ def test_compute_fds_time_plan_grid_mismatch_message_mentions_nyquist_clipping()
     with pytest.raises(ValidationError, match="strict_nyquist"):
         compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
 
+
+def test_compute_fds_time_plan_rejects_nonfinite_transfer_matrix():
+    fs = 1000.0
+    t = np.arange(0, 1.0, 1.0 / fs)
+    x = 0.05 * np.sin(2 * np.pi * 20 * t)
+
+    sn = SNParams(slope_k=3.0, ref_stress=86.0, ref_cycles=1e6, amplitude_from_range=True)
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="pv")
+
+    plan = prepare_fds_time_plan(fs=fs, n_samples=x.size, sdof=sdof)
+    h_bad = np.asarray(plan.H).copy()
+    h_bad[0, 0] = np.nan
+    object.__setattr__(plan, "H", h_bad)
+
+    with pytest.raises(ValidationError, match=r"FDSTimePlan\.H must contain only finite values"):
+        compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
+

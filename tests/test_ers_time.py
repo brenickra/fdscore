@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from fdscore import SDOFParams, compute_ers_time, envelope_ers, prepare_fds_time_plan
+from fdscore import ERSResult, SDOFParams, ValidationError, compute_ers_time, envelope_ers, prepare_fds_time_plan
 
 
 def test_compute_ers_time_zero_signal_is_zero():
@@ -49,3 +50,35 @@ def test_envelope_ers_with_time_histories_matches_pointwise_max():
 
     expected = np.maximum(ers1.response, ers2.response)
     assert np.allclose(mission.response, expected)
+
+
+def test_compute_ers_time_rejects_nonfinite_reused_plan_matrix():
+    rng = np.random.default_rng(9)
+    x = rng.normal(size=2048)
+    sdof = SDOFParams(q=12.0, metric="acc", fmin=10.0, fmax=90.0, df=10.0)
+    plan = prepare_fds_time_plan(fs=512.0, n_samples=x.size, sdof=sdof)
+    h_bad = np.asarray(plan.H).copy()
+    h_bad[0, 0] = np.inf
+    object.__setattr__(plan, "H", h_bad)
+
+    with pytest.raises(ValidationError, match=r"FDSTimePlan\.H must contain only finite values"):
+        compute_ers_time(x, 512.0, sdof, detrend="mean", plan=plan)
+
+
+def test_envelope_ers_rejects_response_shape_broadcast():
+    fs = 512.0
+    t = np.arange(0.0, 4.0, 1.0 / fs)
+    x1 = 0.6 * np.sin(2.0 * np.pi * 25.0 * t)
+    x2 = 1.2 * np.sin(2.0 * np.pi * 60.0 * t)
+    sdof = SDOFParams(q=10.0, metric="acc", fmin=10.0, fmax=100.0, df=10.0)
+
+    ers1 = compute_ers_time(x1, fs, sdof, detrend="none")
+    ers2 = compute_ers_time(x2, fs, sdof, detrend="none")
+    malformed = ERSResult(
+        f=np.asarray(ers2.f, dtype=float),
+        response=np.asarray(ers2.response, dtype=float).reshape(1, -1),
+        meta=dict(ers2.meta),
+    )
+
+    with pytest.raises(ValidationError, match="response arrays must match the reference shape"):
+        envelope_ers([ers1, malformed])

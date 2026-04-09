@@ -95,7 +95,7 @@ def invert_fds_iterative_time(
         raise ValidationError("psd_seed must be finite and strictly positive.")
 
     q = float(sdof.q)
-    ensure_compat_inversion(target=target, metric=sdof.metric, q=q, p_scale=p_scale, sn=sn)
+    ensure_compat_inversion(target=target, metric=sdof.metric, q=q, p_scale=p_scale, sn=sn, sdof=sdof)
 
     f0 = np.asarray(target.f, dtype=float).reshape(-1)
     zeta = 1.0 / (2.0 * q)

@@ -28,7 +28,10 @@ def envelope_ers(results: Sequence[ERSResult]) -> ERSResult:
 
     response = np.asarray(ref.response, dtype=float).copy()
     for ers in results[1:]:
-        response = np.maximum(response, np.asarray(ers.response, dtype=float))
+        response_i = np.asarray(ers.response, dtype=float)
+        if response_i.shape != response.shape:
+            raise ValidationError("All ERS response arrays must match the reference shape.")
+        response = np.maximum(response, response_i)
 
     meta = _copy_meta(ref)
     meta["provenance"] = {

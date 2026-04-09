@@ -138,6 +138,8 @@ def _validate_plan_compatibility(
             "FDSTimePlan.H has unexpected shape. "
             f"Expected {(f0.size, n_bins)}, got {h.shape}."
         )
+    if not np.all(np.isfinite(h)):
+        raise ValidationError("FDSTimePlan.H must contain only finite values.")
     return h
 
 

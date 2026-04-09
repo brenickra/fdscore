@@ -330,7 +330,7 @@ def assert_ers_compatible(a: ERSResult, b: ERSResult, f_rtol: float = 0.0, f_ato
         raise ValidationError("Incompatible ERS frequency grids. Use explicit regridding outside core.")
 
 
-def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn) -> None:
+def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn, sdof: SDOFParams | None = None) -> None:
     """Validate that a target FDS is compatible with a proposed inversion configuration."""
     if target.meta is None or "compat" not in target.meta:
         raise ValidationError("Target FDS is missing meta['compat']; cannot guarantee compatible inversion.")
@@ -344,4 +344,12 @@ def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn
     cur_sig = SNCompatSignature.from_sn(sn)
     if c.sn != cur_sig:
         raise ValidationError("Incompatible SN parameters between target and inversion.")
+
+    if sdof is not None:
+        from .grid import build_frequency_grid
+
+        f_target = np.asarray(target.f, dtype=float)
+        f_expected = np.asarray(build_frequency_grid(sdof), dtype=float)
+        if f_target.shape != f_expected.shape or not np.allclose(f_target, f_expected, rtol=0.0, atol=1e-9):
+            raise ValidationError("Target FDS frequency grid does not match the grid implied by sdof.")
 

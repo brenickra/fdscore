@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from fdscore import SNParams, SDOFParams, compute_fds_time, scale_fds, sum_fds
+from fdscore import FDSResult, SNParams, SDOFParams, ValidationError, compute_fds_time, scale_fds, sum_fds
 
 
 def test_scale_fds_wraps_input_provenance_without_mutating_compat():
@@ -48,3 +49,23 @@ def test_sum_fds_records_all_inputs_and_weights_in_provenance():
     assert prov["inputs"][1]["weight"] == 0.0
     assert prov["inputs"][0]["provenance"] == fds1.meta["provenance"]
     assert prov["inputs"][1]["provenance"] == fds2.meta["provenance"]
+
+
+def test_sum_fds_rejects_damage_shape_broadcast():
+    fs = 256.0
+    t = np.arange(0, 1.0, 1.0 / fs)
+    x1 = 0.1 * np.sin(2 * np.pi * 20 * t)
+    x2 = 0.08 * np.sin(2 * np.pi * 30 * t)
+
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.0, fmin=10.0, fmax=40.0, df=10.0, metric="pv")
+    fds1 = compute_fds_time(x1, fs, sn=sn, sdof=sdof, p_scale=1.0, detrend="none", batch_size=8)
+    fds2 = compute_fds_time(x2, fs, sn=sn, sdof=sdof, p_scale=1.0, detrend="none", batch_size=8)
+    malformed = FDSResult(
+        f=np.asarray(fds2.f, dtype=float),
+        damage=np.asarray(fds2.damage, dtype=float).reshape(1, -1),
+        meta=dict(fds2.meta),
+    )
+
+    with pytest.raises(ValidationError, match="damage arrays must match the reference shape"):
+        sum_fds([fds1, malformed])

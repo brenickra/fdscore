@@ -77,3 +77,33 @@ def test_iterative_inversion_time_rejects_nonpositive_q():
             n_realizations=1,
             seed=0,
         )
+
+
+def test_iterative_inversion_time_rejects_target_grid_mismatch():
+    fs = 500.0
+    t = np.arange(0, 2.0, 1.0 / fs)
+    x = 0.1 * np.sin(2 * np.pi * 30 * t) + 0.05 * np.sin(2 * np.pi * 80 * t)
+
+    sn = SNParams(slope_k=3.0)
+    target_sdof = SDOFParams(q=10.0, fmin=10.0, fmax=100.0, df=10.0, metric="pv")
+    bad_sdof = SDOFParams(q=10.0, fmin=20.0, fmax=100.0, df=10.0, metric="pv")
+    target = compute_fds_time(x, fs, sn=sn, sdof=target_sdof, detrend="none", p_scale=1.0, batch_size=16)
+
+    f_psd = np.linspace(0.0, fs / 2.0, int(fs / 2) + 1)
+    P0 = np.ones_like(f_psd) * 1e-6
+    params = IterativeInversionParams(iters=1, smooth_enabled=False, prior_blend=0.0)
+
+    with pytest.raises(ValidationError, match="frequency grid"):
+        invert_fds_iterative_time(
+            target,
+            f_psd_hz=f_psd,
+            psd_seed=P0,
+            fs=fs,
+            duration_s=2.0,
+            sn=sn,
+            sdof=bad_sdof,
+            p_scale=1.0,
+            params=params,
+            n_realizations=1,
+            seed=0,
+        )

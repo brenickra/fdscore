@@ -51,7 +51,10 @@ def sum_fds(fds_list: Sequence[FDSResult], weights: Optional[Sequence[float]] = 
     for wi, fds in zip(w, fds_list):
         if wi == 0:
             continue
-        damage += float(wi) * np.asarray(fds.damage, dtype=float)
+        dmg = np.asarray(fds.damage, dtype=float)
+        if dmg.shape != damage.shape:
+            raise ValidationError("All FDS damage arrays must match the reference shape.")
+        damage += float(wi) * dmg
 
     meta = _copy_meta(ref)
     meta["provenance"] = {
