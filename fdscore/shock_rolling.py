@@ -29,6 +29,11 @@ def _validate_rolling_inputs(
         raise ValidationError("events.fs must match fs.")
     if int(events.n_samples) != int(x.size):
         raise ValidationError("events.n_samples must match len(x).")
+    for i, ev in enumerate(events.events):
+        if int(ev.stop_index) - int(ev.start_index) < 4:
+            raise ValidationError(
+                f"Shock event window at index {i} must contain at least 4 samples for rolling shock spectra."
+            )
     return x
 
 

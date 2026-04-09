@@ -87,3 +87,10 @@ def test_synthesize_half_sine_pulse_validates_inputs():
 
     with pytest.raises(ValidationError, match="fs must be finite and > 0"):
         synthesize_half_sine_pulse(HalfSinePulse(amplitude=1.0, duration_s=0.01), 0.0)
+
+
+def test_synthesize_half_sine_pulse_rejects_subsampled_pulse():
+    pulse = HalfSinePulse(amplitude=5.0, duration_s=0.001, polarity="pos")
+
+    with pytest.raises(ValidationError, match="at least 2 pulse samples"):
+        synthesize_half_sine_pulse(pulse, 1000.0, total_duration_s=0.010, t_start_s=0.0)

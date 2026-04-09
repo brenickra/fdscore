@@ -91,3 +91,19 @@ def test_compute_rolling_shock_time_validates_event_set_alignment():
     with pytest.raises(ValidationError, match=r"events.n_samples must match len\(x\)"):
         compute_rolling_srs_time(x[:-1], fs, sdof, events)
 
+
+def test_compute_rolling_shock_time_rejects_event_windows_shorter_than_four_samples():
+    x, fs = _three_pulse_signal(fs=1000.0)
+    events = detect_shock_events(
+        x,
+        fs,
+        detrend="none",
+        threshold_value=1.0,
+        min_separation_s=0.10,
+        window_s=0.001,
+    )
+    sdof = SDOFParams(q=10.0, metric="acc", fmin=10.0, fmax=100.0, df=10.0)
+
+    with pytest.raises(ValidationError, match="at least 4 samples"):
+        compute_rolling_srs_time(x, fs, sdof, events, detrend="none")
+

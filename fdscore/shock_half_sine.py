@@ -127,6 +127,8 @@ def synthesize_half_sine_pulse(
     x = np.zeros(n, dtype=float)
 
     mask = (t >= t_start_s) & (t < t_start_s + duration_s)
+    if int(np.count_nonzero(mask)) < 2:
+        raise ValidationError("pulse.duration_s and fs must yield at least 2 pulse samples.")
     if np.any(mask):
         phase = np.pi * (t[mask] - t_start_s) / duration_s
         x[mask] = float(pulse.signed_amplitude) * np.sin(phase)
