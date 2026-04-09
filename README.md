@@ -307,7 +307,11 @@ This distinction is intentional: FDS addition operates directly on spectra defin
 
 ## API reference
 
-Public contracts and data structures are documented in `CONTRACTS.md`.
+Core public contracts and the main data structures used in release workflows are
+documented in `CONTRACTS.md`.
+
+`CONTRACTS.md` is intentionally not a generated export-by-export reference for
+every helper exposed by `fdscore.__all__`.
 
 
 

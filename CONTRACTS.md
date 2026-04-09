@@ -1,6 +1,11 @@
 # fdscore contracts
 
-This document defines the public API contracts of **fdscore**.
+This document defines the core public API contracts of **fdscore** used by the
+main release workflows.
+
+It is not a generated inventory of every symbol exported by `fdscore.__all__`.
+Helper exports such as low-level builders and convenience wrappers may exist
+outside the scope of this contract document.
 
 Results carry a `meta["compat"]` signature for compatibility checks across
 aggregation and inversion workflows.
@@ -157,7 +162,10 @@ Fields
 - `amp` (float, >=0): base-motion amplitude.
 - `duration_s` (float, >0): dwell duration.
 - `input_motion` (str): `"acc" | "vel" | "disp"` describing what `amp` represents.
-- `label` (optional str): user label for provenance.
+- `label` (optional str): optional user label stored on the segment object itself.
+
+Current note
+- deterministic helpers currently do not propagate `label` into result provenance automatically.
 
 ### `PSDMetricsResult`
 Summary metrics derived from acceleration PSD.
@@ -390,7 +398,7 @@ Computes mission-level FDS from multiple deterministic dwell segments.
 Mission rule
 - FDS composes by damage summation.
 
-### `envelope_ers(list_of_ers)`
+### `envelope_ers(results)`
 Computes a pointwise envelope across compatible ERS results.
 
 Compatibility
@@ -402,21 +410,22 @@ Compatibility
 ### `scale_fds(fds, factor)`
 Multiplies damage by `factor > 0` and records structured provenance for the new result, including the scaled input provenance.
 
-### `sum_fds(list_of_fds, weights=None)`
+### `sum_fds(fds_list, weights=None)`
 Sums spectra only when compatible under FDS algebra rules:
 - same `metric`, `q`, `p_scale`, same S-N, and same frequency grid.
 
 The output preserves the compatible metadata from the reference spectrum and records structured provenance for all inputs and weights.
 No implicit regridding is performed.
 
-### `invert_fds_closed_form(fds, test_duration_s)`
+### `invert_fds_closed_form(fds, *, test_duration_s, strict_metric=True)`
 Closed-form inversion based on the Henderson-Piersol / MIL-STD style formulation:
 - Converts `Damage -> DP` using `p_scale`, S-N, and `gamma(1+b/2)`.
 - Converts `DP -> PSD` with `G(f) = f*zeta*(DP/(f*T))^(2/b)`.
 
 Requirements
 - `fds.meta["compat"]` must contain `metric="pv"`, `q`, `p_scale`, and `sn`.
-- `test_duration_s > 0`.
+- `test_duration_s` must be passed as a keyword argument and satisfy `> 0`.
+- `strict_metric=True` enforces `metric="pv"`.
 
 Output
 - `PSDResult` with reconstruction diagnostics in `meta["reconstruction"]`.
