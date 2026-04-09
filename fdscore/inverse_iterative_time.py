@@ -79,6 +79,8 @@ def invert_fds_iterative_time(
         raise ValidationError("target_duration_s must be finite and > 0 when provided.")
     if not np.isfinite(p_scale) or float(p_scale) <= 0:
         raise ValidationError("p_scale must be finite and > 0.")
+    if not np.isfinite(sdof.q) or float(sdof.q) <= 0:
+        raise ValidationError("sdof.q must be finite and > 0.")
     n_realizations = int(n_realizations)
     if n_realizations < 1:
         raise ValidationError("n_realizations must be >= 1.")
@@ -92,10 +94,11 @@ def invert_fds_iterative_time(
     if np.any(P0 <= 0) or not np.all(np.isfinite(P0)):
         raise ValidationError("psd_seed must be finite and strictly positive.")
 
-    ensure_compat_inversion(target=target, metric=sdof.metric, q=sdof.q, p_scale=p_scale, sn=sn)
+    q = float(sdof.q)
+    ensure_compat_inversion(target=target, metric=sdof.metric, q=q, p_scale=p_scale, sn=sn)
 
     f0 = np.asarray(target.f, dtype=float).reshape(-1)
-    zeta = 1.0 / (2.0 * float(sdof.q))
+    zeta = 1.0 / (2.0 * q)
     t_syn = float(duration_s)
     t_target = float(target_duration_s) if target_duration_s is not None else t_syn
     duration_scale = float(t_target / t_syn)

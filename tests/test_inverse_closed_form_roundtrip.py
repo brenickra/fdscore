@@ -42,3 +42,30 @@ def test_closed_form_rejects_noncurrent_compat_schema():
 
     with pytest.raises(ValidationError):
         invert_fds_closed_form(fds, test_duration_s=3600.0)
+
+
+def test_closed_form_rejects_nonpositive_q_in_compat_metadata():
+    f = np.array([10.0, 20.0, 30.0])
+    damage = np.array([1e-6, 2e-6, 3e-6])
+    fds = FDSResult(
+        f=f,
+        damage=damage,
+        meta={
+            "compat": {
+                "engine": "time_rainflow_fft_numba",
+                "metric": "pv",
+                "q": 0.0,
+                "p_scale": 1.0,
+                "sn": {
+                    "slope_k": 3.0,
+                    "ref_stress": 1.0,
+                    "ref_cycles": 1.0,
+                    "amplitude_from_range": True,
+                },
+                "fds_kind": "damage_spectrum",
+            }
+        },
+    )
+
+    with pytest.raises(ValidationError, match="Invalid q"):
+        invert_fds_closed_form(fds, test_duration_s=3600.0)

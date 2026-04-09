@@ -116,7 +116,13 @@ def miner_damage_from_signal(
         raise ValidationError("signal must be a 1D array.")
     if not np.all(np.isfinite(s)):
         raise ValidationError("signal must contain only finite values.")
-    return float(_miner_damage_numba(s, float(k), float(c), bool(amplitude_from_range)))
+    k_val = float(k)
+    c_val = float(c)
+    if not np.isfinite(k_val) or k_val <= 0.0:
+        raise ValidationError("k must be finite and > 0.")
+    if not np.isfinite(c_val) or c_val <= 0.0:
+        raise ValidationError("c must be finite and > 0.")
+    return float(_miner_damage_numba(s, k_val, c_val, bool(amplitude_from_range)))
 
 
 
@@ -136,4 +142,10 @@ def miner_damage_from_matrix(
         raise ValidationError("signals must be a 2D array with shape (n_signals, n_samples).")
     if not np.all(np.isfinite(m)):
         raise ValidationError("signals must contain only finite values.")
-    return _miner_damage_matrix_numba(m, float(k), float(c), bool(amplitude_from_range))
+    k_val = float(k)
+    c_val = float(c)
+    if not np.isfinite(k_val) or k_val <= 0.0:
+        raise ValidationError("k must be finite and > 0.")
+    if not np.isfinite(c_val) or c_val <= 0.0:
+        raise ValidationError("c must be finite and > 0.")
+    return _miner_damage_matrix_numba(m, k_val, c_val, bool(amplitude_from_range))

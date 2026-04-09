@@ -125,6 +125,8 @@ def invert_fds_closed_form(
 
     if b <= 0 or ref_stress <= 0 or ref_cycles <= 0:
         raise ValidationError("Invalid S-N parameters (must be > 0).")
+    if not np.isfinite(q) or q <= 0:
+        raise ValidationError("Invalid q in FDS compat metadata (must be finite and > 0).")
 
     zeta = 1.0 / (2.0 * q)
     c_sn = ref_cycles * (ref_stress ** b)

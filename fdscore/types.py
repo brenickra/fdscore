@@ -54,7 +54,7 @@ class SNParams:
             slope_k=float(slope_k),
             ref_stress=1.0,
             ref_cycles=1.0,
-            amplitude_from_range=bool(amplitude_from_range),
+            amplitude_from_range=amplitude_from_range,
         )
 
     def C(self) -> float:

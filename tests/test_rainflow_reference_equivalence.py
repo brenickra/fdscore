@@ -104,3 +104,27 @@ def test_miner_damage_matrix_rejects_invalid_shape_and_nonfinite_input():
 
     with pytest.raises(ValidationError):
         miner_damage_from_matrix(np.array([[0.0, 1.0], [np.nan, 0.0]]), k=3.0, c=10.0)
+
+
+@pytest.mark.parametrize(
+    ("k", "c"),
+    [
+        (0.0, 10.0),
+        (-1.0, 10.0),
+        (np.nan, 10.0),
+        (np.inf, 10.0),
+        (3.0, 0.0),
+        (3.0, -1.0),
+        (3.0, np.nan),
+        (3.0, np.inf),
+    ],
+)
+def test_miner_damage_wrappers_reject_invalid_k_or_c(k: float, c: float):
+    signal = np.array([0.0, 1.0, 0.0, -1.0, 0.0], dtype=float)
+    signals = signal.reshape(1, -1)
+
+    with pytest.raises(ValidationError):
+        miner_damage_from_signal(signal, k=k, c=c)
+
+    with pytest.raises(ValidationError):
+        miner_damage_from_matrix(signals, k=k, c=c)

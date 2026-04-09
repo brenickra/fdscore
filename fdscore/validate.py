@@ -10,6 +10,12 @@ class ValidationError(ValueError):
     """Raised when inputs are invalid or incompatible."""
 
 
+def _bool_flag_or_raise(value, *, field: str) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    raise ValidationError(f"{field} must be a boolean.")
+
+
 @dataclass(frozen=True, slots=True)
 class SNCompatSignature:
     slope_k: float
@@ -23,7 +29,10 @@ class SNCompatSignature:
             slope_k=float(sn.slope_k),
             ref_stress=float(sn.ref_stress),
             ref_cycles=float(sn.ref_cycles),
-            amplitude_from_range=bool(sn.amplitude_from_range),
+            amplitude_from_range=_bool_flag_or_raise(
+                sn.amplitude_from_range,
+                field="SNParams.amplitude_from_range",
+            ),
         )
 
     @classmethod
@@ -44,7 +53,10 @@ class SNCompatSignature:
             slope_k=float(sn_sig["slope_k"]),
             ref_stress=float(sn_sig["ref_stress"]),
             ref_cycles=float(sn_sig["ref_cycles"]),
-            amplitude_from_range=bool(sn_sig["amplitude_from_range"]),
+            amplitude_from_range=_bool_flag_or_raise(
+                sn_sig["amplitude_from_range"],
+                field="FDS compat metadata field 'sn.amplitude_from_range'",
+            ),
         )
 
     def as_dict(self) -> dict[str, float | bool]:
@@ -174,6 +186,7 @@ def validate_sn(sn: SNParams) -> None:
         raise ValidationError("SNParams.ref_stress must be finite and > 0.")
     if not np.isfinite(sn.ref_cycles) or sn.ref_cycles <= 0:
         raise ValidationError("SNParams.ref_cycles must be finite and > 0.")
+    _bool_flag_or_raise(sn.amplitude_from_range, field="SNParams.amplitude_from_range")
 
 
 def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
@@ -210,6 +223,8 @@ def validate_frequency_vector(f: np.ndarray) -> None:
 def validate_sdof(sdof: SDOFParams) -> None:
     if not np.isfinite(sdof.q) or sdof.q <= 0:
         raise ValidationError("SDOFParams.q must be finite and > 0.")
+    if sdof.f is not None and (sdof.fmin is not None or sdof.fmax is not None or sdof.df is not None):
+        raise ValidationError("Provide either sdof.f OR (fmin, fmax, df), not both.")
     if sdof.f is None:
         if sdof.fmin is None or sdof.fmax is None or sdof.df is None:
             raise ValidationError("Provide either sdof.f OR (fmin, fmax, df).")

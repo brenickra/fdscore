@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Hardened public validation for S-N boolean flags, mixed SDOF grid definitions, rainflow Miner wrapper parameters, and inversion routes with invalid `q`
 - Expanded CI coverage to Python 3.10, 3.11, and 3.12 while keeping the main editable-install test run
 - Added release-artifact validation in CI for both wheel and sdist installs, added a clean-env `spectral` smoke job, and excluded `examples/__pycache__` from the sdist
 - Added deterministic sine and dwell-profile FDS APIs

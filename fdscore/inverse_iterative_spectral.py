@@ -62,6 +62,8 @@ def invert_fds_iterative_spectral(
         raise ValidationError("duration_s must be finite and > 0.")
     if not np.isfinite(p_scale) or float(p_scale) <= 0:
         raise ValidationError("p_scale must be finite and > 0.")
+    if not np.isfinite(sdof.q) or float(sdof.q) <= 0:
+        raise ValidationError("sdof.q must be finite and > 0.")
 
     f_psd = np.asarray(f_psd_hz, dtype=float).reshape(-1)
     P0 = np.asarray(psd_seed, dtype=float).reshape(-1)
@@ -72,10 +74,11 @@ def invert_fds_iterative_spectral(
     if np.any(P0 <= 0) or not np.all(np.isfinite(P0)):
         raise ValidationError("psd_seed must be finite and strictly positive.")
 
-    ensure_compat_inversion(target=target, metric=sdof.metric, q=sdof.q, p_scale=p_scale, sn=sn)
+    q = float(sdof.q)
+    ensure_compat_inversion(target=target, metric=sdof.metric, q=q, p_scale=p_scale, sn=sn)
 
     f0 = np.asarray(target.f, dtype=float).reshape(-1)
-    zeta = 1.0 / (2.0 * float(sdof.q))
+    zeta = 1.0 / (2.0 * q)
 
     H = build_transfer_psd(f_psd_hz=f_psd, f0_hz=f0, zeta=zeta, metric=sdof.metric)
     B = np.abs(H) ** 2

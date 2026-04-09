@@ -73,3 +73,30 @@ def test_compute_fds_spectral_psd_raises_validation_for_invalid_life(monkeypatch
 
     with pytest.raises(ValidationError, match="invalid life"):
         compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
+
+
+def test_compute_fds_spectral_psd_rejects_non_boolean_sn_amplitude_flag():
+    f = np.linspace(1.0, 100.0, 100)
+    psd = np.full_like(f, 1e-4)
+    sn = SNParams.normalized(slope_k=3.0, amplitude_from_range="false")
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="pv")
+
+    with pytest.raises(ValidationError, match="amplitude_from_range"):
+        compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
+
+
+def test_compute_fds_spectral_psd_rejects_mixed_sdof_grid_inputs():
+    f = np.linspace(1.0, 100.0, 100)
+    psd = np.full_like(f, 1e-4)
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(
+        q=10.0,
+        metric="pv",
+        f=np.array([5.0, 10.0, 20.0, 40.0]),
+        fmin=5.0,
+        fmax=40.0,
+        df=5.0,
+    )
+
+    with pytest.raises(ValidationError, match=r"either sdof\.f OR \(fmin, fmax, df\), not both"):
+        compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
