@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ._psd_utils import clip_tiny_negative_psd_or_raise
 from .validate import ValidationError
 
 
@@ -60,8 +61,7 @@ def synthesize_time_from_psd(
         raise ValidationError("PSD inputs must be finite.")
     if not np.all(np.diff(f_psd) > 0):
         raise ValidationError("f_psd_hz must be strictly increasing.")
-    if np.any(P < 0):
-        P = np.maximum(P, 0.0)
+    P = clip_tiny_negative_psd_or_raise(P, label="psd")
 
     if not np.isfinite(fs) or float(fs) <= 0:
         raise ValidationError("fs must be finite and > 0.")
@@ -83,22 +83,29 @@ def synthesize_time_from_psd(
 
     # Interpolate PSD onto FFT bins (one-sided)
     P_fft = np.interp(f_fft, f_psd, P, left=0.0, right=0.0)
-    P_fft = np.maximum(P_fft, 0.0)
+    P_fft = clip_tiny_negative_psd_or_raise(P_fft, label="interpolated psd")
 
     rng = np.random.default_rng(seed)
 
     # Complex spectrum for rfft bins
     X = np.zeros_like(f_fft, dtype=np.complex128)
+    has_nyquist = (nfft % 2) == 0
+    interior_stop = -1 if has_nyquist else None
 
-    # Random phases for positive freqs excluding DC and Nyquist
-    if f_fft.size > 2:
-        phi = rng.uniform(0.0, 2.0 * np.pi, size=f_fft.size - 2)
-        mag = float(nfft) * np.sqrt(0.5 * P_fft[1:-1] * df)
-        X[1:-1] = mag * (np.cos(phi) + 1j * np.sin(phi))
+    # Random phases for positive freqs with conjugate pairs.
+    paired_bins = P_fft[1:interior_stop]
+    if paired_bins.size > 0:
+        phi = rng.uniform(0.0, 2.0 * np.pi, size=paired_bins.size)
+        mag = float(nfft) * np.sqrt(0.5 * paired_bins * df)
+        X[1:interior_stop] = mag * (np.cos(phi) + 1j * np.sin(phi))
 
-    # DC and Nyquist set to zero (mean removed later anyway)
-    X[0] = 0.0 + 0.0j
-    X[-1] = 0.0 + 0.0j
+    # DC is a singleton bin; preserve it unless remove_mean is requested.
+    if not remove_mean and P_fft[0] > 0.0:
+        X[0] = float(nfft) * np.sqrt(P_fft[0] * df) * (1.0 if rng.uniform() < 0.5 else -1.0)
+
+    # Even-length FFTs also have a singleton Nyquist bin that must not be doubled.
+    if has_nyquist and P_fft[-1] > 0.0:
+        X[-1] = float(nfft) * np.sqrt(P_fft[-1] * df) * (1.0 if rng.uniform() < 0.5 else -1.0)
 
     x = np.fft.irfft(X, n=nfft)[:N].astype(float, copy=False)
     if remove_mean:

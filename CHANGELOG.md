@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Aligned `detect_shock_events(...)` peak-threshold semantics with the selected detection polarity
+- Hardened `synthesize_time_from_psd(...)` negative-PSD handling and preserved singleton/edge FFT-bin energy during time synthesis
 
 ## 0.3.0
 - Clarified `CONTRACTS.md` and `README.md` scope for release workflows, corrected public helper signatures, and aligned the documented `SineDwellSegment.label` behavior with runtime
