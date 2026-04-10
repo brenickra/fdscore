@@ -1,3 +1,9 @@
+"""Validation and compatibility contracts used across the public API.
+
+This module centralizes input validation, metadata normalization, and
+cross-result compatibility checks for FDS and ERS workflows.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +13,7 @@ from .types import SNParams, SDOFParams, FDSResult, ERSResult
 
 
 class ValidationError(ValueError):
-    """Raised when inputs are invalid or incompatible."""
+    """Raised when inputs are invalid or mutually incompatible."""
 
 
 def _bool_flag_or_raise(value, *, field: str) -> bool:
@@ -38,6 +44,20 @@ def _finite_positive_float_or_raise(value, *, field: str) -> float:
 
 @dataclass(frozen=True, slots=True)
 class SNCompatSignature:
+    """Normalized S-N metadata used in compatibility checks.
+
+    Parameters
+    ----------
+    slope_k : float
+        S-N slope exponent.
+    ref_stress : float
+        Reference stress used to define the S-N intercept.
+    ref_cycles : float
+        Reference cycle count associated with ``ref_stress``.
+    amplitude_from_range : bool
+        Rainflow convention indicating whether the damage-driving amplitude is
+        obtained from ``range / 2``.
+    """
     slope_k: float
     ref_stress: float
     ref_cycles: float
@@ -90,6 +110,24 @@ class SNCompatSignature:
 
 @dataclass(frozen=True, slots=True)
 class FDSCompatSignature:
+    """Compatibility signature carried by fatigue-damage spectra.
+
+    Parameters
+    ----------
+    engine : str
+        Name of the computational route that produced the FDS.
+    metric : str
+        Response metric represented by the spectrum.
+    q : float
+        Oscillator quality factor used in the response model.
+    p_scale : float
+        Response-to-fatigue scaling factor used before damage evaluation.
+    sn : SNCompatSignature
+        Canonical S-N definition associated with the damage spectrum.
+    fds_kind : str, optional
+        Logical kind of spectrum. The default value identifies Miner-damage
+        spectra.
+    """
     engine: str
     metric: str
     q: float
@@ -148,6 +186,21 @@ class FDSCompatSignature:
 
 @dataclass(frozen=True, slots=True)
 class ERSCompatSignature:
+    """Compatibility signature carried by extreme-response spectra.
+
+    Parameters
+    ----------
+    engine : str
+        Name of the computational route that produced the ERS.
+    metric : str
+        Response metric represented by the spectrum.
+    q : float
+        Oscillator quality factor used in the response model.
+    peak_mode : str
+        Peak convention associated with the reported response values.
+    ers_kind : str, optional
+        Logical kind of response spectrum.
+    """
     engine: str
     metric: str
     q: float
@@ -200,6 +253,19 @@ class ERSCompatSignature:
 
 
 def validate_sn(sn: SNParams) -> None:
+    """Validate an ``SNParams`` instance.
+
+    Parameters
+    ----------
+    sn : SNParams
+        S-N definition to validate.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` if any
+        field violates the library contract.
+    """
     _finite_positive_float_or_raise(sn.slope_k, field="SNParams.slope_k")
     _finite_positive_float_or_raise(sn.ref_stress, field="SNParams.ref_stress")
     _finite_positive_float_or_raise(sn.ref_cycles, field="SNParams.ref_cycles")
@@ -207,7 +273,28 @@ def validate_sn(sn: SNParams) -> None:
 
 
 def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
-    """Resolve p_scale under the normalized-vs-physical workflow contract."""
+    """Resolve the effective response scale for fatigue calculations.
+
+    Parameters
+    ----------
+    p_scale : float or None
+        Explicit response scale factor. When provided, it must be finite and
+        strictly positive.
+    sn : SNParams
+        S-N definition used to determine whether the default normalized
+        convention is allowed.
+
+    Returns
+    -------
+    float
+        Resolved positive scale factor.
+
+    Notes
+    -----
+    The implicit default ``p_scale = 1.0`` is accepted only when the S-N
+    definition is normalized, that is, when ``ref_stress = 1`` and
+    ``ref_cycles = 1``. Physical workflows must pass ``p_scale`` explicitly.
+    """
     if p_scale is not None:
         val = float(p_scale)
         if not np.isfinite(val) or val <= 0.0:
@@ -224,6 +311,20 @@ def resolve_p_scale(*, p_scale: float | None, sn: SNParams) -> float:
 
 
 def validate_frequency_vector(f: np.ndarray) -> None:
+    """Validate a frequency grid used by spectral or oscillator routines.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        One-dimensional frequency vector in Hz.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` if the
+        frequency grid is not finite, strictly increasing, and strictly
+        positive.
+    """
     if f.ndim != 1:
         raise ValidationError("Frequency vector f must be 1D.")
     if f.size < 2:
@@ -238,6 +339,26 @@ def validate_frequency_vector(f: np.ndarray) -> None:
 
 
 def validate_sdof(sdof: SDOFParams) -> None:
+    """Validate an ``SDOFParams`` definition.
+
+    Parameters
+    ----------
+    sdof : SDOFParams
+        Oscillator-grid definition to validate.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` when the
+        SDOF configuration is incomplete or inconsistent.
+
+    Notes
+    -----
+    The library accepts exactly one of two grid conventions:
+
+    1. An explicit frequency vector ``sdof.f``.
+    2. An implicit linear grid defined by ``(fmin, fmax, df)``.
+    """
     _finite_positive_float_or_raise(sdof.q, field="SDOFParams.q")
     if sdof.f is not None and (sdof.fmin is not None or sdof.fmax is not None or sdof.df is not None):
         raise ValidationError("Provide either sdof.f OR (fmin, fmax, df), not both.")
@@ -301,11 +422,52 @@ def _validate_nyquist_with_info(
 
 
 def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float = 1e-12) -> np.ndarray:
+    """Validate an oscillator grid against the Nyquist limit.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        Frequency grid in Hz.
+    fs : float
+        Sampling rate in Hz.
+    strict : bool, optional
+        If ``True``, frequencies at or above Nyquist raise
+        ``ValidationError``. If ``False``, out-of-range frequencies are
+        removed.
+    tol : float, optional
+        Numerical tolerance applied to the Nyquist comparison.
+
+    Returns
+    -------
+    numpy.ndarray
+        Validated frequency grid. In non-strict mode, this may be a clipped
+        subset of the original array.
+    """
     out, _ = _validate_nyquist_with_info(f, fs, strict=strict, tol=tol)
     return out
 
 
 def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str) -> dict[str, object]:
+    """Build canonical compatibility metadata for an FDS result.
+
+    Parameters
+    ----------
+    sn : SNParams
+        S-N definition associated with the FDS.
+    metric : str
+        Response metric represented by the spectrum.
+    q : float
+        Oscillator quality factor.
+    p_scale : float
+        Response-to-fatigue scaling factor.
+    engine : str
+        Name of the computational route that produced the result.
+
+    Returns
+    -------
+    dict
+        Dictionary payload suitable for storage in ``FDSResult.meta["compat"]``.
+    """
     return FDSCompatSignature.from_inputs(
         sn=sn,
         metric=metric,
@@ -316,6 +478,26 @@ def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str
 
 
 def ers_compat_dict(*, metric: str, q: float, peak_mode: str, engine: str, ers_kind: str = "response_spectrum") -> dict[str, object]:
+    """Build canonical compatibility metadata for an ERS result.
+
+    Parameters
+    ----------
+    metric : str
+        Response metric represented by the spectrum.
+    q : float
+        Oscillator quality factor.
+    peak_mode : str
+        Peak convention used by the ERS.
+    engine : str
+        Name of the computational route that produced the result.
+    ers_kind : str, optional
+        Logical kind of response spectrum.
+
+    Returns
+    -------
+    dict
+        Dictionary payload suitable for storage in ``ERSResult.meta["compat"]``.
+    """
     return ERSCompatSignature(
         engine=str(engine),
         metric=str(metric),
@@ -326,10 +508,34 @@ def ers_compat_dict(*, metric: str, q: float, peak_mode: str, engine: str, ers_k
 
 
 def parse_fds_compat(compat) -> FDSCompatSignature:
+    """Parse stored FDS compatibility metadata.
+
+    Parameters
+    ----------
+    compat : object
+        Raw payload stored under ``meta["compat"]``.
+
+    Returns
+    -------
+    FDSCompatSignature
+        Parsed and normalized compatibility signature.
+    """
     return FDSCompatSignature.from_payload(compat)
 
 
 def parse_ers_compat(compat) -> ERSCompatSignature:
+    """Parse stored ERS compatibility metadata.
+
+    Parameters
+    ----------
+    compat : object
+        Raw payload stored under ``meta["compat"]``.
+
+    Returns
+    -------
+    ERSCompatSignature
+        Parsed and normalized compatibility signature.
+    """
     return ERSCompatSignature.from_payload(compat)
 
 
@@ -343,6 +549,25 @@ def _ensure_compat_float_match(*, actual, expected: float, field: str, rtol: flo
 
 
 def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
+    """Assert that two FDS results can be combined without regridding.
+
+    Parameters
+    ----------
+    a : FDSResult
+        Reference fatigue-damage spectrum.
+    b : FDSResult
+        Candidate spectrum to compare against ``a``.
+    f_rtol : float, optional
+        Relative tolerance used for frequency-grid comparison.
+    f_atol : float, optional
+        Absolute tolerance used for frequency-grid comparison.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` when the
+        compatibility metadata or frequency grids differ.
+    """
     ca = parse_fds_compat((a.meta or {}).get("compat", {}))
     cb = parse_fds_compat((b.meta or {}).get("compat", {}))
 
@@ -364,6 +589,25 @@ def assert_fds_compatible(a: FDSResult, b: FDSResult, f_rtol: float = 0.0, f_ato
 
 
 def assert_ers_compatible(a: ERSResult, b: ERSResult, f_rtol: float = 0.0, f_atol: float = 1e-9) -> None:
+    """Assert that two ERS results can be combined without regridding.
+
+    Parameters
+    ----------
+    a : ERSResult
+        Reference response spectrum.
+    b : ERSResult
+        Candidate spectrum to compare against ``a``.
+    f_rtol : float, optional
+        Relative tolerance used for frequency-grid comparison.
+    f_atol : float, optional
+        Absolute tolerance used for frequency-grid comparison.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` when the
+        compatibility metadata or frequency grids differ.
+    """
     ca = parse_ers_compat((a.meta or {}).get("compat", {}))
     cb = parse_ers_compat((b.meta or {}).get("compat", {}))
 
@@ -383,7 +627,31 @@ def assert_ers_compatible(a: ERSResult, b: ERSResult, f_rtol: float = 0.0, f_ato
 
 
 def ensure_compat_inversion(*, target, metric: str, q: float, p_scale: float, sn, sdof: SDOFParams | None = None) -> None:
-    """Validate that a target FDS is compatible with a proposed inversion configuration."""
+    """Validate that a target FDS matches a proposed inversion setup.
+
+    Parameters
+    ----------
+    target : FDSResult
+        Target fatigue-damage spectrum to be inverted.
+    metric : str
+        Response metric expected by the inversion route.
+    q : float
+        Oscillator quality factor expected by the inversion route.
+    p_scale : float
+        Response-to-fatigue scaling factor expected by the inversion route.
+    sn : SNParams
+        S-N definition expected by the inversion route.
+    sdof : SDOFParams or None, optional
+        Optional oscillator-grid definition. When provided, the target
+        frequency grid must match the grid implied by ``sdof``.
+
+    Returns
+    -------
+    None
+        The function returns ``None`` and raises ``ValidationError`` when the
+        target metadata is missing or incompatible with the proposed
+        inversion.
+    """
     if target.meta is None or "compat" not in target.meta:
         raise ValidationError("Target FDS is missing meta['compat']; cannot guarantee compatible inversion.")
 

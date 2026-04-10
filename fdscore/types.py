@@ -1,3 +1,5 @@
+"""Typed data containers used throughout the public ``fdscore`` API."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -50,12 +52,24 @@ class SNParams:
     ) -> "SNParams":
         """Return a normalized S-N definition with unit reference values.
 
-        The normalized convention uses:
-        - `ref_stress = 1.0`
-        - `ref_cycles = 1.0`
+        Parameters
+        ----------
+        slope_k : float
+            Fatigue slope exponent :math:`k`.
+        amplitude_from_range : bool, optional
+            Rainflow convention indicating whether the damage-driving
+            amplitude is computed from ``range / 2``.
 
-        This is useful when the workflow is focused on FDS shape and FDS-to-PSD
-        inversion, rather than absolute Miner damage magnitude.
+        Returns
+        -------
+        SNParams
+            S-N definition with ``ref_stress = 1`` and ``ref_cycles = 1``.
+
+        Notes
+        -----
+        This normalized convention is useful when the workflow is focused on
+        relative FDS shape and FDS-to-PSD inversion rather than absolute Miner
+        damage magnitude.
         """
         return cls(
             slope_k=float(slope_k),
@@ -71,11 +85,29 @@ class SNParams:
 
 @dataclass(frozen=True, slots=True)
 class SDOFParams:
-    """SDOF oscillator grid and response metric.
+    """SDOF oscillator-grid definition and response metric.
 
-    Frequency grid can be provided in two ways:
-    - Explicit vector `f` (Hz), strictly increasing, all positive.
-    - Linear grid via fmin,fmax,df.
+    Parameters
+    ----------
+    q : float
+        Oscillator quality factor.
+    metric : str, optional
+        Response metric reported by the SDOF bank. Accepted values are
+        ``"pv"``, ``"acc"``, ``"vel"``, and ``"disp"``.
+    f : numpy.ndarray or None, optional
+        Explicit frequency grid in Hz. When provided, it must be strictly
+        increasing and strictly positive.
+    fmin : float or None, optional
+        Minimum oscillator frequency in Hz for an implicit linear grid.
+    fmax : float or None, optional
+        Maximum oscillator frequency in Hz for an implicit linear grid.
+    df : float or None, optional
+        Frequency increment in Hz for an implicit linear grid.
+
+    Notes
+    -----
+    The grid can be defined either by an explicit vector ``f`` or by the
+    linear-grid tuple ``(fmin, fmax, df)``, but not both.
     """
     q: float
     metric: Metric = "pv"
@@ -87,10 +119,28 @@ class SDOFParams:
 
 @dataclass(frozen=True, slots=True)
 class PSDParams:
-    """PSD estimation configuration.
+    """PSD-estimation settings used by spectral workflows.
 
-    The current implementation supports Welch (`scipy.signal.welch`)
-    as the internal estimator.
+    Parameters
+    ----------
+    method : {"welch"}, optional
+        PSD estimation method. The current implementation supports only Welch.
+    window : str, optional
+        Window passed to the Welch estimator.
+    nperseg : int or None, optional
+        Segment length passed to the Welch estimator.
+    noverlap : int or None, optional
+        Segment overlap passed to the Welch estimator.
+    detrend : {"constant", "linear", "none"}, optional
+        Detrending mode used during PSD estimation.
+    scaling : {"density"}, optional
+        PSD scaling convention.
+    onesided : bool, optional
+        Whether a one-sided PSD is requested.
+    fmin : float or None, optional
+        Optional lower cropping limit in Hz.
+    fmax : float or None, optional
+        Optional upper cropping limit in Hz.
     """
     method: Literal["welch"] = "welch"
     window: str = "hann"
@@ -105,7 +155,17 @@ class PSDParams:
 
 @dataclass(frozen=True, slots=True)
 class FDSResult:
-    """Fatigue Damage Spectrum result."""
+    """Fatigue Damage Spectrum result container.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        Oscillator frequency grid in Hz.
+    damage : numpy.ndarray
+        Miner-damage values evaluated on ``f``.
+    meta : dict, optional
+        Auxiliary metadata such as compatibility signatures and provenance.
+    """
     f: np.ndarray
     damage: np.ndarray
     meta: dict[str, Any] = field(default_factory=dict)
@@ -113,7 +173,17 @@ class FDSResult:
 
 @dataclass(frozen=True, slots=True)
 class ERSResult:
-    """Extreme response spectrum result."""
+    """Extreme-response spectrum result container.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        Oscillator frequency grid in Hz.
+    response : numpy.ndarray
+        Response-spectrum values evaluated on ``f``.
+    meta : dict, optional
+        Auxiliary metadata such as compatibility signatures and provenance.
+    """
     f: np.ndarray
     response: np.ndarray
     meta: dict[str, Any] = field(default_factory=dict)
@@ -121,7 +191,17 @@ class ERSResult:
 
 @dataclass(frozen=True, slots=True)
 class ShockSpectrumPair:
-    """Positive/negative sided shock-spectrum pair."""
+    """Positive and negative shock-spectrum pair.
+
+    Parameters
+    ----------
+    neg : ERSResult
+        Negative-sided response spectrum.
+    pos : ERSResult
+        Positive-sided response spectrum.
+    meta : dict, optional
+        Auxiliary metadata associated with the pair.
+    """
     neg: ERSResult
     pos: ERSResult
     meta: dict[str, Any] = field(default_factory=dict)
@@ -129,7 +209,29 @@ class ShockSpectrumPair:
 
 @dataclass(frozen=True, slots=True)
 class ShockEvent:
-    """Single detected shock event in a 1D time history."""
+    """Single detected shock event in a one-dimensional time history.
+
+    Parameters
+    ----------
+    peak_index : int
+        Sample index of the event peak.
+    start_index : int
+        Start sample index of the extracted event window.
+    stop_index : int
+        Stop sample index of the extracted event window.
+    peak_time_s : float
+        Peak time in seconds.
+    start_time_s : float
+        Start time in seconds.
+    stop_time_s : float
+        Stop time in seconds.
+    peak_value : float
+        Signed peak value.
+    peak_abs : float
+        Absolute peak magnitude.
+    polarity : {"pos", "neg"}
+        Peak polarity classification.
+    """
     peak_index: int
     start_index: int
     stop_index: int
@@ -143,7 +245,19 @@ class ShockEvent:
 
 @dataclass(frozen=True, slots=True)
 class ShockEventSet:
-    """Detected shock events and the settings used to define them."""
+    """Detected shock events together with extraction metadata.
+
+    Parameters
+    ----------
+    events : tuple of ShockEvent
+        Detected events in chronological order.
+    fs : float
+        Sampling rate in Hz of the source signal.
+    n_samples : int
+        Total number of samples in the analyzed signal.
+    meta : dict, optional
+        Auxiliary metadata describing detector settings and provenance.
+    """
     events: tuple[ShockEvent, ...]
     fs: float
     n_samples: int
@@ -152,7 +266,19 @@ class ShockEventSet:
 
 @dataclass(frozen=True, slots=True)
 class RollingERSResult:
-    """Event-window response spectra stacked over multiple time windows."""
+    """Rolling response spectra stacked over multiple time windows.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        Oscillator frequency grid in Hz.
+    t_center_s : numpy.ndarray
+        Time coordinate associated with each response row.
+    response : numpy.ndarray
+        Two-dimensional response matrix with one row per time window.
+    meta : dict, optional
+        Auxiliary metadata associated with the rolling result.
+    """
     f: np.ndarray
     t_center_s: np.ndarray
     response: np.ndarray
@@ -161,7 +287,19 @@ class RollingERSResult:
 
 @dataclass(frozen=True, slots=True)
 class HalfSinePulse:
-    """Parameterized half-sine acceleration pulse."""
+    """Parameterized half-sine acceleration pulse.
+
+    Parameters
+    ----------
+    amplitude : float
+        Unsigned pulse amplitude.
+    duration_s : float
+        Pulse duration in seconds.
+    polarity : {"pos", "neg"}, optional
+        Pulse polarity.
+    meta : dict, optional
+        Auxiliary metadata associated with the pulse definition.
+    """
     amplitude: float
     duration_s: float
     polarity: Literal["pos", "neg"] = "pos"
@@ -176,13 +314,31 @@ class HalfSinePulse:
 class FDSTimePlan:
     """Precomputed transfer plan for repeated time-domain FDS calls.
 
-    A plan stores the frequency grid and transfer matrix for a fixed
-    `(fs, n_samples, sdof)` configuration and can be reused across
-    channels/signals with the same sampling setup.
+    Parameters
+    ----------
+    fs : float
+        Sampling rate in Hz.
+    n_samples : int
+        Number of samples expected in reused time histories.
+    f : numpy.ndarray
+        Validated oscillator frequency grid in Hz.
+    zeta : float
+        Oscillator damping ratio implied by the source ``SDOFParams``.
+    metric : str
+        Response metric encoded in the plan. Accepted values are
+        ``"pv"``, ``"acc"``, ``"vel"``, and ``"disp"``.
+    H : numpy.ndarray
+        Complex transfer matrix used during FFT-domain reconstruction.
 
-    The stored transfer matrix `H` is materialized as a `complex128` array with
-    shape `(len(f), n_fft_bins)`. This trades memory for speed by avoiding transfer
-    rebuilds during repeated `compute_fds_time(...)` calls.
+    Notes
+    -----
+    A plan stores the frequency grid and transfer matrix for a fixed
+    ``(fs, n_samples, sdof)`` configuration and can be reused across
+    channels and signals with the same sampling setup.
+
+    The stored transfer matrix ``H`` is materialized as a ``complex128`` array
+    with shape ``(len(f), n_fft_bins)``. This trades memory for speed by
+    avoiding transfer rebuilds during repeated ``compute_fds_time(...)`` calls.
     """
     fs: float
     n_samples: int
@@ -194,7 +350,17 @@ class FDSTimePlan:
 
 @dataclass(frozen=True, slots=True)
 class PSDResult:
-    """PSD result."""
+    """Power Spectral Density result container.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        Frequency grid in Hz.
+    psd : numpy.ndarray
+        One-sided PSD values evaluated on ``f``.
+    meta : dict, optional
+        Auxiliary metadata such as provenance and reconstruction diagnostics.
+    """
     f: np.ndarray
     psd: np.ndarray
     meta: dict[str, Any] = field(default_factory=dict)
@@ -225,7 +391,22 @@ class PSDMetricsResult:
 
 @dataclass(frozen=True, slots=True)
 class SineDwellSegment:
-    """Single deterministic harmonic dwell segment."""
+    """Single deterministic harmonic dwell segment.
+
+    Parameters
+    ----------
+    freq_hz : float
+        Harmonic excitation frequency in Hz.
+    amp : float
+        Input amplitude expressed in the units implied by ``input_motion``.
+    duration_s : float
+        Dwell duration in seconds.
+    input_motion : str, optional
+        Type of the prescribed harmonic input quantity. Accepted values
+        are ``"acc"``, ``"vel"``, and ``"disp"``.
+    label : str or None, optional
+        Optional user-facing identifier for the segment.
+    """
 
     freq_hz: float
     amp: float
@@ -238,22 +419,62 @@ class SineDwellSegment:
 class IterativeInversionParams:
     """Configuration parameters for iterative PSD inversion.
 
-    Use `meta["diagnostics"]` returned by inversion functions to track convergence.
+    Parameters
+    ----------
+    iters : int, optional
+        Number of main-loop iterations.
+    gamma : float, optional
+        Multiplicative update exponent.
+    gain_min : float, optional
+        Lower clip applied to oscillator-wise gains.
+    gain_max : float, optional
+        Upper clip applied to oscillator-wise gains.
+    alpha_sharpness : float, optional
+        Exponent used to sharpen or soften the influence matrix.
+    floor : float, optional
+        Minimum PSD floor maintained during iteration.
+    smooth_enabled : bool, optional
+        Whether periodic smoothing is enabled during the main loop.
+    smooth_window_bins : int, optional
+        Smoothing-window width in PSD bins.
+    smooth_every_n_iters : int, optional
+        Smoothing cadence in iterations.
+    prior_blend : float, optional
+        Blend factor against the seed PSD in log space.
+    prior_power : float, optional
+        Sensitivity weighting exponent applied to prior blending.
+    edge_anchor_hz : float, optional
+        Frequency span used for edge anchoring.
+    edge_anchor_blend : float, optional
+        Blend factor used for low- and high-frequency edge anchoring.
+    tail_cap_start_hz : float, optional
+        Frequency above which the spectral tail cap becomes active.
+    tail_cap_ratio : float, optional
+        Maximum allowed high-frequency tail ratio relative to the seed PSD.
+    low_cap_ratio : float, optional
+        Maximum allowed low-frequency ratio relative to the seed PSD.
+    post_smooth_window_bins : int, optional
+        Smoothing-window width used in the optional post-smoothing stage.
+    post_smooth_blend : float, optional
+        Blend factor applied between the best PSD and the post-smoothed PSD.
+    post_refine_iters : int, optional
+        Number of optional refinement iterations after post-smoothing.
+    post_refine_gamma : float, optional
+        Update exponent used during the refinement stage.
+    post_refine_min : float, optional
+        Lower gain clip used during refinement.
+    post_refine_max : float, optional
+        Upper gain clip used during refinement.
 
-    Parameter usage is not fully symmetric across engines:
+    Notes
+    -----
+    Use ``meta["diagnostics"]`` returned by inversion functions to track
+    convergence.
 
-    - Common fields used by both iterative engines:
-      `iters`, `gamma`, `gain_min`, `gain_max`, `alpha_sharpness`,
-      `floor`, `smooth_enabled`, `smooth_window_bins`, `smooth_every_n_iters`,
-      `prior_blend`, `prior_power`, `edge_anchor_hz`, `edge_anchor_blend`.
-    - Spectral-only fields:
-      `tail_cap_start_hz`, `tail_cap_ratio`, `low_cap_ratio`,
-      `post_smooth_window_bins`, `post_smooth_blend`,
-      `post_refine_iters`, `post_refine_gamma`,
-      `post_refine_min`, `post_refine_max`.
-
-    The time-domain iterative engine currently ignores the spectral-only subset.
-    Returned `PSDResult.meta["param_usage"]` makes the per-engine usage explicit.
+    Parameter usage is not fully symmetric across engines. The time-domain
+    iterative engine currently ignores the spectral-only subset, while
+    ``PSDResult.meta["param_usage"]`` records the per-engine interpretation
+    explicitly.
     """
 
     iters: int = 30
