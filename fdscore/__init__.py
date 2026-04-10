@@ -7,6 +7,8 @@ fdscore provides numerical tools for FDS and PSD workflows.
 Public contracts are defined in `CONTRACTS.md` at the repository root.
 """
 
+from types import ModuleType as _ModuleType
+
 from .types import (
     SNParams,
     SDOFParams,
@@ -100,3 +102,11 @@ __all__ = [
     "synthesize_time_from_psd",
     "compute_psd_metrics",
 ]
+
+for _name, _value in tuple(globals().items()):
+    if _name not in __all__ and isinstance(_value, _ModuleType):
+        globals().pop(_name, None)
+
+globals().pop("annotations", None)
+
+del _name, _value, _ModuleType
