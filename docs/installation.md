@@ -22,6 +22,20 @@ To enable the spectral workflow as well:
 pip install "fdscore[spectral]"
 ```
 
+## Development Installation
+
+For editable development installs:
+
+```bash
+pip install -e .
+```
+
+To install development tooling as well:
+
+```bash
+pip install -e ".[dev]"
+```
+
 ## Install From Source
 
 ```bash
