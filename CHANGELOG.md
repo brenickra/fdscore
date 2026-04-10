@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.3.0
 - Clarified `CONTRACTS.md` and `README.md` scope for release workflows, corrected public helper signatures, and aligned the documented `SineDwellSegment.label` behavior with runtime
 - Hardened shock rolling window validation and half-sine synthesis guards against undersampled pulses
 - Hardened spectral-route metric and one-sided PSD guards, and aligned PSD metrics negative-PSD validation with shared tolerance policy
