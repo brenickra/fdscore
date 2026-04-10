@@ -37,6 +37,29 @@ def test_compute_ers_time_can_reuse_compatible_fds_time_plan():
     assert ers_plan.meta["provenance"]["transfer_plan"] is True
 
 
+def test_compute_ers_time_rejects_non_numeric_fs_with_validation_error():
+    sdof = SDOFParams(q=10.0, metric="acc", fmin=10.0, fmax=100.0, df=10.0)
+
+    with pytest.raises(ValidationError, match=r"fs must be finite and > 0"):
+        compute_ers_time(np.zeros(8, dtype=float), "abc", sdof, detrend="none")
+
+
+def test_compute_ers_time_records_nyquist_clipping_in_provenance():
+    sdof = SDOFParams(q=10.0, metric="acc", f=np.array([10.0, 20.0, 40.0, 60.0]))
+    x = np.zeros(256, dtype=float)
+
+    ers = compute_ers_time(x, 100.0, sdof, detrend="none", strict_nyquist=False)
+
+    prov = ers.meta["provenance"]
+    assert prov["strict_nyquist"] is False
+    assert prov["nyquist_clipped"] is True
+    assert prov["nyquist_hz"] == pytest.approx(50.0)
+    assert prov["requested_frequency_count"] == 4
+    assert prov["returned_frequency_count"] == 3
+    assert prov["requested_fmax_hz"] == pytest.approx(60.0)
+    assert prov["returned_fmax_hz"] == pytest.approx(40.0)
+
+
 def test_envelope_ers_with_time_histories_matches_pointwise_max():
     fs = 512.0
     t = np.arange(0.0, 4.0, 1.0 / fs)

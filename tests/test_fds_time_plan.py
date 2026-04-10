@@ -47,6 +47,13 @@ def test_prepare_fds_time_plan_accepts_numpy_integer_scalars():
     assert plan.n_samples == 2048
     assert np.isclose(plan.fs, fs)
 
+
+def test_prepare_fds_time_plan_rejects_non_numeric_fs_with_validation_error():
+    sdof = SDOFParams(q=10.0, fmin=5.0, fmax=50.0, df=5.0, metric="pv")
+
+    with pytest.raises(ValidationError, match=r"fs must be finite and > 0"):
+        prepare_fds_time_plan(fs="abc", n_samples=2048, sdof=sdof)
+
 def test_compute_fds_time_plan_accepts_small_zeta_drift():
     fs = 1000.0
     t = np.arange(0, 1.0, 1.0 / fs)
@@ -77,6 +84,23 @@ def test_compute_fds_time_plan_grid_mismatch_message_mentions_nyquist_clipping()
 
     with pytest.raises(ValidationError, match="strict_nyquist"):
         compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
+
+
+def test_compute_fds_time_records_nyquist_clipping_in_provenance():
+    x = np.zeros(256, dtype=float)
+    sn = SNParams(slope_k=3.0)
+    sdof = SDOFParams(q=10.0, metric="pv", f=np.array([10.0, 20.0, 40.0, 60.0]))
+
+    fds = compute_fds_time(x, 100.0, sn=sn, sdof=sdof, detrend="none", strict_nyquist=False)
+
+    prov = fds.meta["provenance"]
+    assert prov["strict_nyquist"] is False
+    assert prov["nyquist_clipped"] is True
+    assert prov["nyquist_hz"] == pytest.approx(50.0)
+    assert prov["requested_frequency_count"] == 4
+    assert prov["returned_frequency_count"] == 3
+    assert prov["requested_fmax_hz"] == pytest.approx(60.0)
+    assert prov["returned_fmax_hz"] == pytest.approx(40.0)
 
 
 def test_compute_fds_time_plan_rejects_nonfinite_transfer_matrix():

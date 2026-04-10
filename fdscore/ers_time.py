@@ -4,7 +4,13 @@ import numpy as np
 
 from .types import SDOFParams, ERSResult, FDSTimePlan
 from .grid import build_frequency_grid
-from .validate import ValidationError, validate_sdof, validate_nyquist, ers_compat_dict
+from .validate import (
+    ValidationError,
+    _finite_positive_float_or_raise,
+    _validate_nyquist_with_info,
+    ers_compat_dict,
+    validate_sdof,
+)
 from .preprocess import preprocess_signal
 from .sdof_transfer import build_transfer_matrix
 from .fds_time import _validate_plan_compatibility
@@ -73,6 +79,7 @@ def compute_ers_time(
         raise ValidationError("peak_mode must be 'abs'.")
     if not isinstance(batch_size, int) or batch_size <= 0:
         raise ValidationError("batch_size must be an int > 0.")
+    fs = _finite_positive_float_or_raise(fs, field="fs")
 
     x = np.asarray(x, dtype=float)
     if x.ndim != 1 or x.size < 4:
@@ -80,17 +87,17 @@ def compute_ers_time(
     if not np.all(np.isfinite(x)):
         raise ValidationError("x must contain only finite values.")
 
-    f0 = build_frequency_grid(sdof)
-    f0 = validate_nyquist(f0, fs=float(fs), strict=strict_nyquist)
+    f_requested = build_frequency_grid(sdof)
+    f0, nyquist_info = _validate_nyquist_with_info(f_requested, fs=fs, strict=strict_nyquist)
     zeta = 1.0 / (2.0 * float(sdof.q))
     y = preprocess_signal(x, mode=detrend)
 
     if plan is None:
-        H = build_transfer_matrix(fs=float(fs), n=int(y.size), f0_hz=f0, zeta=float(zeta), metric=sdof.metric)
+        H = build_transfer_matrix(fs=fs, n=int(y.size), f0_hz=f0, zeta=float(zeta), metric=sdof.metric)
     else:
         H = _validate_plan_compatibility(
             plan=plan,
-            fs=float(fs),
+            fs=fs,
             n_samples=int(y.size),
             f0=f0,
             zeta=float(zeta),
@@ -99,7 +106,7 @@ def compute_ers_time(
 
     response = _ers_from_signal_fft(
         y,
-        fs=float(fs),
+        fs=fs,
         f0=f0,
         zeta=float(zeta),
         metric=sdof.metric,
@@ -119,6 +126,7 @@ def compute_ers_time(
             "detrend": detrend,
             "batch_size": int(batch_size),
             "transfer_plan": bool(plan is not None),
+            **nyquist_info,
         },
     }
     return ERSResult(f=f0, response=np.asarray(response, dtype=float), meta=meta)

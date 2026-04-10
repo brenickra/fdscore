@@ -5,7 +5,13 @@ import numpy as np
 from ._shock_iir import _shock_response_spectrum_iir
 from .grid import build_frequency_grid
 from .types import ERSResult, SDOFParams, ShockSpectrumPair
-from .validate import ValidationError, ers_compat_dict, validate_nyquist, validate_sdof
+from .validate import (
+    ValidationError,
+    _finite_positive_float_or_raise,
+    _validate_nyquist_with_info,
+    ers_compat_dict,
+    validate_sdof,
+)
 
 
 def _preprocess_shock_signal(x: np.ndarray, *, detrend: str) -> np.ndarray:
@@ -35,7 +41,7 @@ def _validate_shock_wrapper_inputs(
     expected_metric: str,
     detrend: str,
     peak_mode: str,
-) -> tuple[np.ndarray, np.ndarray, float]:
+) -> tuple[np.ndarray, np.ndarray, float, float]:
     validate_sdof(sdof)
 
     if sdof.metric != expected_metric:
@@ -50,14 +56,13 @@ def _validate_shock_wrapper_inputs(
     if not np.all(np.isfinite(x)):
         raise ValidationError("x must contain only finite values.")
 
-    if not np.isfinite(fs) or float(fs) <= 0.0:
-        raise ValidationError("fs must be finite and > 0.")
+    fs = _finite_positive_float_or_raise(fs, field="fs")
 
     f0 = build_frequency_grid(sdof)
     zeta = 1.0 / (2.0 * float(sdof.q))
 
     _preprocess_shock_signal(np.zeros(4, dtype=float), detrend=detrend)
-    return x, f0, zeta
+    return x, f0, zeta, fs
 
 
 def _build_shock_result(
@@ -71,6 +76,7 @@ def _build_shock_result(
     ers_kind: str,
     source: str,
     detrend: str,
+    nyquist_info: dict[str, object],
 ) -> ERSResult:
     meta = {
         "compat": ers_compat_dict(
@@ -88,6 +94,7 @@ def _build_shock_result(
             "source": source,
             "detrend": detrend,
             "engine": "recursive_iir",
+            **nyquist_info,
         },
     }
     return ERSResult(f=np.asarray(f0, dtype=float), response=np.asarray(response, dtype=float), meta=meta)
@@ -110,7 +117,7 @@ def compute_srs_time(
     - `sdof.metric` must be ``"acc"``.
     - Public sidedness supports ``abs``, ``pos``, ``neg``, and ``both``.
     """
-    x, f0, zeta = _validate_shock_wrapper_inputs(
+    x, f0, zeta, fs = _validate_shock_wrapper_inputs(
         x=x,
         fs=fs,
         sdof=sdof,
@@ -118,12 +125,12 @@ def compute_srs_time(
         detrend=detrend,
         peak_mode=peak_mode,
     )
-    f0 = validate_nyquist(f0, fs=float(fs), strict=strict_nyquist)
+    f0, nyquist_info = _validate_nyquist_with_info(f0, fs=fs, strict=strict_nyquist)
     y = _preprocess_shock_signal(x, detrend=detrend)
 
     response = _shock_response_spectrum_iir(
         y,
-        fs=float(fs),
+        fs=fs,
         f0_hz=f0,
         zeta=float(zeta),
         metric="acc",
@@ -141,6 +148,7 @@ def compute_srs_time(
             ers_kind="shock_response_spectrum",
             source="compute_srs_time",
             detrend=detrend,
+            nyquist_info=nyquist_info,
         )
         pos = _build_shock_result(
             f0=f0,
@@ -152,6 +160,7 @@ def compute_srs_time(
             ers_kind="shock_response_spectrum",
             source="compute_srs_time",
             detrend=detrend,
+            nyquist_info=nyquist_info,
         )
         return ShockSpectrumPair(
             neg=neg,
@@ -166,6 +175,7 @@ def compute_srs_time(
                     "source": "compute_srs_time",
                     "detrend": detrend,
                     "engine": "recursive_iir",
+                    **nyquist_info,
                 },
             },
         )
@@ -180,6 +190,7 @@ def compute_srs_time(
         ers_kind="shock_response_spectrum",
         source="compute_srs_time",
         detrend=detrend,
+        nyquist_info=nyquist_info,
     )
 
 
@@ -200,7 +211,7 @@ def compute_pvss_time(
     - `sdof.metric` must be ``"pv"``.
     - Public sidedness supports ``abs``, ``pos``, ``neg``, and ``both``.
     """
-    x, f0, zeta = _validate_shock_wrapper_inputs(
+    x, f0, zeta, fs = _validate_shock_wrapper_inputs(
         x=x,
         fs=fs,
         sdof=sdof,
@@ -208,12 +219,12 @@ def compute_pvss_time(
         detrend=detrend,
         peak_mode=peak_mode,
     )
-    f0 = validate_nyquist(f0, fs=float(fs), strict=strict_nyquist)
+    f0, nyquist_info = _validate_nyquist_with_info(f0, fs=fs, strict=strict_nyquist)
     y = _preprocess_shock_signal(x, detrend=detrend)
 
     response = _shock_response_spectrum_iir(
         y,
-        fs=float(fs),
+        fs=fs,
         f0_hz=f0,
         zeta=float(zeta),
         metric="pv",
@@ -231,6 +242,7 @@ def compute_pvss_time(
             ers_kind="pseudo_velocity_shock_spectrum",
             source="compute_pvss_time",
             detrend=detrend,
+            nyquist_info=nyquist_info,
         )
         pos = _build_shock_result(
             f0=f0,
@@ -242,6 +254,7 @@ def compute_pvss_time(
             ers_kind="pseudo_velocity_shock_spectrum",
             source="compute_pvss_time",
             detrend=detrend,
+            nyquist_info=nyquist_info,
         )
         return ShockSpectrumPair(
             neg=neg,
@@ -256,6 +269,7 @@ def compute_pvss_time(
                     "source": "compute_pvss_time",
                     "detrend": detrend,
                     "engine": "recursive_iir",
+                    **nyquist_info,
                 },
             },
         )
@@ -270,4 +284,5 @@ def compute_pvss_time(
         ers_kind="pseudo_velocity_shock_spectrum",
         source="compute_pvss_time",
         detrend=detrend,
+        nyquist_info=nyquist_info,
     )

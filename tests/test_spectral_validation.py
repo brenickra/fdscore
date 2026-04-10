@@ -4,6 +4,7 @@ import pytest
 import fdscore.fds_spectral as spectral_mod
 import fdscore.psd_welch as welch_mod
 from fdscore import PSDParams, SDOFParams, SNParams, ValidationError, compute_fds_spectral_psd, compute_fds_spectral_time, compute_psd_welch
+from fdscore.validate import validate_sdof, validate_sn
 
 
 def test_compute_fds_spectral_psd_rejects_material_negative_input():
@@ -83,6 +84,19 @@ def test_compute_fds_spectral_psd_rejects_non_boolean_sn_amplitude_flag():
 
     with pytest.raises(ValidationError, match="amplitude_from_range"):
         compute_fds_spectral_psd(f, psd, duration_s=60.0, sn=sn, sdof=sdof, p_scale=1.0)
+
+
+def test_validate_sn_rejects_non_numeric_scalar_inputs_with_validation_error():
+    with pytest.raises(ValidationError, match=r"SNParams\.slope_k must be finite and > 0"):
+        validate_sn(SNParams(slope_k="abc"))
+
+
+def test_validate_sdof_rejects_non_numeric_scalar_inputs_with_validation_error():
+    with pytest.raises(ValidationError, match=r"SDOFParams\.q must be finite and > 0"):
+        validate_sdof(SDOFParams(q="abc", fmin=5.0, fmax=50.0, df=5.0))
+
+    with pytest.raises(ValidationError, match=r"SDOFParams \(fmin,fmax,df\) must be finite"):
+        validate_sdof(SDOFParams(q=10.0, fmin="abc", fmax=50.0, df=5.0))
 
 
 def test_compute_fds_spectral_psd_rejects_mixed_sdof_grid_inputs():

@@ -16,6 +16,26 @@ def _bool_flag_or_raise(value, *, field: str) -> bool:
     raise ValidationError(f"{field} must be a boolean.")
 
 
+def _finite_float_or_raise(value, *, field: str) -> float:
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        raise ValidationError(f"{field} must be finite.") from None
+    if not np.isfinite(out):
+        raise ValidationError(f"{field} must be finite.")
+    return out
+
+
+def _finite_positive_float_or_raise(value, *, field: str) -> float:
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        raise ValidationError(f"{field} must be finite and > 0.") from None
+    if not np.isfinite(out) or out <= 0.0:
+        raise ValidationError(f"{field} must be finite and > 0.")
+    return out
+
+
 @dataclass(frozen=True, slots=True)
 class SNCompatSignature:
     slope_k: float
@@ -180,12 +200,9 @@ class ERSCompatSignature:
 
 
 def validate_sn(sn: SNParams) -> None:
-    if not np.isfinite(sn.slope_k) or sn.slope_k <= 0:
-        raise ValidationError("SNParams.slope_k must be finite and > 0.")
-    if not np.isfinite(sn.ref_stress) or sn.ref_stress <= 0:
-        raise ValidationError("SNParams.ref_stress must be finite and > 0.")
-    if not np.isfinite(sn.ref_cycles) or sn.ref_cycles <= 0:
-        raise ValidationError("SNParams.ref_cycles must be finite and > 0.")
+    _finite_positive_float_or_raise(sn.slope_k, field="SNParams.slope_k")
+    _finite_positive_float_or_raise(sn.ref_stress, field="SNParams.ref_stress")
+    _finite_positive_float_or_raise(sn.ref_cycles, field="SNParams.ref_cycles")
     _bool_flag_or_raise(sn.amplitude_from_range, field="SNParams.amplitude_from_range")
 
 
@@ -221,36 +238,71 @@ def validate_frequency_vector(f: np.ndarray) -> None:
 
 
 def validate_sdof(sdof: SDOFParams) -> None:
-    if not np.isfinite(sdof.q) or sdof.q <= 0:
-        raise ValidationError("SDOFParams.q must be finite and > 0.")
+    _finite_positive_float_or_raise(sdof.q, field="SDOFParams.q")
     if sdof.f is not None and (sdof.fmin is not None or sdof.fmax is not None or sdof.df is not None):
         raise ValidationError("Provide either sdof.f OR (fmin, fmax, df), not both.")
     if sdof.f is None:
         if sdof.fmin is None or sdof.fmax is None or sdof.df is None:
             raise ValidationError("Provide either sdof.f OR (fmin, fmax, df).")
-        if not (np.isfinite(sdof.fmin) and np.isfinite(sdof.fmax) and np.isfinite(sdof.df)):
+        try:
+            fmin = float(sdof.fmin)
+            fmax = float(sdof.fmax)
+            df = float(sdof.df)
+        except (TypeError, ValueError):
+            raise ValidationError("SDOFParams (fmin,fmax,df) must be finite.") from None
+        if not (np.isfinite(fmin) and np.isfinite(fmax) and np.isfinite(df)):
             raise ValidationError("SDOFParams (fmin,fmax,df) must be finite.")
-        if sdof.fmin <= 0 or sdof.fmax <= 0 or sdof.df <= 0:
+        if fmin <= 0 or fmax <= 0 or df <= 0:
             raise ValidationError("SDOFParams fmin,fmax,df must be > 0.")
-        if sdof.fmax <= sdof.fmin:
+        if fmax <= fmin:
             raise ValidationError("SDOFParams.fmax must be > fmin.")
     else:
-        f = np.asarray(sdof.f, dtype=float)
+        try:
+            f = np.asarray(sdof.f, dtype=float)
+        except (TypeError, ValueError):
+            raise ValidationError("Frequency vector f must contain only finite values.") from None
         validate_frequency_vector(f)
 
 
-def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float = 1e-12) -> np.ndarray:
-    if not np.isfinite(fs) or fs <= 0:
-        raise ValidationError("Sampling rate fs must be finite and > 0.")
-    nyq = fs / 2.0
-    if strict and np.max(f) >= (nyq - tol):
-        raise ValidationError(f"Frequency grid exceeds Nyquist: max(f)={np.max(f)} >= fs/2={nyq}.")
+def _validate_nyquist_with_info(
+    f: np.ndarray,
+    fs: float,
+    *,
+    strict: bool = True,
+    tol: float = 1e-12,
+) -> tuple[np.ndarray, dict[str, object]]:
+    fs_val = _finite_positive_float_or_raise(fs, field="Sampling rate fs")
+    f_arr = np.asarray(f, dtype=float)
+    nyq = fs_val / 2.0
+    requested_count = int(f_arr.size)
+    requested_fmax = float(np.max(f_arr))
+
+    if strict and requested_fmax >= (nyq - tol):
+        raise ValidationError(f"Frequency grid exceeds Nyquist: max(f)={requested_fmax} >= fs/2={nyq}.")
+
     if strict:
-        return f
-    mask = f < (nyq - tol)
-    if not np.any(mask):
-        raise ValidationError("All oscillator frequencies are above Nyquist after clipping.")
-    return f[mask]
+        out = f_arr
+    else:
+        mask = f_arr < (nyq - tol)
+        if not np.any(mask):
+            raise ValidationError("All oscillator frequencies are above Nyquist after clipping.")
+        out = f_arr[mask]
+
+    info = {
+        "strict_nyquist": bool(strict),
+        "nyquist_hz": float(nyq),
+        "nyquist_clipped": bool(out.size != requested_count),
+        "requested_frequency_count": int(requested_count),
+        "returned_frequency_count": int(out.size),
+        "requested_fmax_hz": float(requested_fmax),
+        "returned_fmax_hz": float(np.max(out)),
+    }
+    return out, info
+
+
+def validate_nyquist(f: np.ndarray, fs: float, strict: bool = True, tol: float = 1e-12) -> np.ndarray:
+    out, _ = _validate_nyquist_with_info(f, fs, strict=strict, tol=tol)
+    return out
 
 
 def compat_dict(sn: SNParams, metric: str, q: float, p_scale: float, engine: str) -> dict[str, object]:

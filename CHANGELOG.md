@@ -3,6 +3,7 @@
 ## Unreleased
 - Aligned `detect_shock_events(...)` peak-threshold semantics with the selected detection polarity
 - Hardened `synthesize_time_from_psd(...)` negative-PSD handling and preserved singleton/edge FFT-bin energy during time synthesis
+- Recorded non-strict Nyquist clipping diagnostics in time-domain FDS/ERS/shock provenance and normalized more invalid validation inputs to `ValidationError`
 
 ## 0.3.0
 - Clarified `CONTRACTS.md` and `README.md` scope for release workflows, corrected public helper signatures, and aligned the documented `SineDwellSegment.label` behavior with runtime
