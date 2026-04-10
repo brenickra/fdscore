@@ -3,8 +3,10 @@
 **Numerical Python library for Fatigue Damage Spectrum (FDS) computation and
 FDS-to-PSD inversion.**
 
+<!--
 [![PyPI version](https://img.shields.io/pypi/v/fdscore.svg)](https://pypi.org/project/fdscore/)
 [![Python versions](https://img.shields.io/pypi/pyversions/fdscore.svg)](https://pypi.org/project/fdscore/)
+-->
 [![Documentation](https://readthedocs.org/projects/fdscore/badge/?version=latest)](https://fdscore.readthedocs.io/en/latest/)
 [![CI](https://github.com/brenickra/fdscore/actions/workflows/ci.yml/badge.svg)](https://github.com/brenickra/fdscore/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
