@@ -73,6 +73,24 @@ def test_detect_shock_events_uses_threshold_reference_when_absolute_threshold_mi
     assert events.meta["effective_threshold"] > 0.0
 
 
+def test_detect_shock_events_peak_threshold_uses_selected_polarity():
+    x, fs = _three_pulse_signal()
+
+    events = detect_shock_events(
+        x,
+        fs,
+        detrend="none",
+        polarity="pos",
+        threshold_reference="peak",
+        threshold_multiplier=0.90,
+        min_separation_s=0.10,
+    )
+
+    assert len(events.events) == 1
+    assert events.events[0].polarity == "pos"
+    assert events.meta["effective_threshold"] == pytest.approx(1.8)
+
+
 def test_detect_shock_events_window_is_clipped_at_signal_edges():
     fs = 1000.0
     t = np.arange(0.0, 0.5, 1.0 / fs)

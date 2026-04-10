@@ -48,16 +48,22 @@ def _validate_event_detector_inputs(
     return x
 
 
-def _event_threshold(y: np.ndarray, *, threshold_reference: str, threshold_multiplier: float, threshold_value: float | None) -> float:
+def _event_threshold(
+    detector: np.ndarray,
+    *,
+    threshold_reference: str,
+    threshold_multiplier: float,
+    threshold_value: float | None,
+) -> float:
     if threshold_value is not None:
         return float(threshold_value)
 
     if threshold_reference == "rms":
-        ref = math.sqrt(float(np.mean(y * y)))
+        ref = math.sqrt(float(np.mean(detector * detector)))
     elif threshold_reference == "std":
-        ref = float(np.std(y))
+        ref = float(np.std(detector))
     else:
-        ref = float(np.max(np.abs(y)))
+        ref = max(0.0, float(np.max(detector)))
 
     return float(threshold_multiplier) * ref
 
@@ -104,7 +110,7 @@ def detect_shock_events(
         detector = -y
 
     threshold = _event_threshold(
-        y,
+        detector,
         threshold_reference=threshold_reference,
         threshold_multiplier=threshold_multiplier,
         threshold_value=threshold_value,

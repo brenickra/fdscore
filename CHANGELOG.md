@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Aligned `detect_shock_events(...)` peak-threshold semantics with the selected detection polarity
 
 ## 0.3.0
 - Clarified `CONTRACTS.md` and `README.md` scope for release workflows, corrected public helper signatures, and aligned the documented `SineDwellSegment.label` behavior with runtime
