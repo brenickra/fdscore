@@ -12,9 +12,9 @@ The main workflows in the package use an SDOF oscillator bank defined by
 `SDOFParams` together with an S-N model defined by `SNParams`. Damping is
 consistently written internally as
 
-$$
+```{math}
 \zeta = \frac{1}{2Q}
-$$
+```
 
 which is the relationship used throughout the implementation when converting
 the quality factor `q` to damping ratio.
@@ -27,9 +27,9 @@ Miner damage accumulation. The implementation in `fdscore.rainflow_damage`
 works on reversal points and sums full-cycle and half-cycle contributions in
 the form
 
-$$
+```{math}
 D = \sum_j \phi_j \frac{S_j^k}{C}
-$$
+```
 
 where `\phi_j` is the cycle fraction (`0.5` or `1.0` in the code), `S_j` is
 the effective cycle load, `k` is the S-N slope exponent, and
@@ -38,9 +38,9 @@ the effective cycle load, `k` is the S-N slope exponent, and
 The `compute_fds_time(...)` documentation also makes explicit that, for fixed
 `k`, the absolute damage level scales globally as
 
-$$
+```{math}
 \frac{p_{scale}^k}{N_{ref} S_{ref}^k}
-$$
+```
 
 which changes the magnitude of `damage(f)` without changing its relative
 shape.
@@ -50,15 +50,15 @@ shape.
 `compute_fds_spectral_psd(...)` builds the spectral response of each
 oscillator from a base-acceleration PSD. Its implementation explicitly uses
 
-$$
+```{math}
 P_{resp}(f; f_0) = p_{scale}^2 \, |H(f; f_0)|^2 \, P_{base}(f)
-$$
+```
 
 and
 
-$$
+```{math}
 damage(f_0) = \frac{duration_s}{life(f_0)}
-$$
+```
 
 where `life(f_0)` is obtained from `FLife.Dirlik`. The companion route
 `compute_fds_spectral_time(...)` first estimates the PSD with Welch
@@ -76,32 +76,32 @@ The module `fdscore.inverse_closed_form` documents the closed-form derivation
 used to invert an FDS into an equivalent acceleration PSD. The function
 `compute_damage_to_dp_factor(...)` presents the damage expression
 
-$$
+```{math}
 D = \left(\frac{\nu_0 T}{C}\right)\left(\sqrt{2}\,\sigma_S\right)^b
 \Gamma\left(1 + \frac{b}{2}\right)
-$$
+```
 
 and the approximate relationship between the stress standard deviation and the
 input acceleration PSD
 
-$$
+```{math}
 \sigma_S \approx p_{scale}\sqrt{\frac{G_{aa}(f_n)}{16 \pi f_n \zeta}}
-$$
+```
 
 under the assumptions of narrowband Gaussian response, stationarity, SDOF
 behavior, and light damping.
 
 From there, the code defines the **Damage Potential (DP)** as
 
-$$
+```{math}
 DP(f_n) = f_n T \left[\frac{G_{aa}(f_n)}{f_n \zeta}\right]^{b/2}
-$$
+```
 
 and implements its algebraic inverse as
 
-$$
+```{math}
 G_{aa}(f_n) = f_n \zeta \left[\frac{DP(f_n)}{f_n T}\right]^{2/b}
-$$
+```
 
 `invert_fds_closed_form(...)` first converts damage to `DP(f)` using the
 proportionality factor `K` such that `Damage = K * DP`, and then applies the

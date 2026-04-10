@@ -18,6 +18,8 @@ extensions = [
     "myst_parser",
 ]
 
+myst_enable_extensions = ["dollarmath"]
+
 html_theme = "furo"
 html_show_sphinx = False
 
