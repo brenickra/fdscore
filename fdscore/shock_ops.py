@@ -1,3 +1,10 @@
+"""Post-processing helpers for shock-response and PVSS results.
+
+This module provides envelope operations for one-sided and two-sided
+shock spectra. It builds on the generic ERS envelope logic while adding
+checks for shock-specific spectrum kinds such as SRS and PVSS.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -91,10 +98,26 @@ def _envelope_shock_pairs(
 
 
 def envelope_srs(results: Sequence[ERSResult | ShockSpectrumPair]) -> ERSResult | ShockSpectrumPair:
-    """Compute an envelope across compatible SRS results.
+    """Compute an envelope across compatible shock-response spectra.
 
-    Accepts either a sequence of one-sided `ERSResult` values or a sequence of
-    sided `ShockSpectrumPair` values. Mixing the two forms is rejected.
+    Parameters
+    ----------
+    results : sequence
+        Sequence containing either one-sided ``ERSResult`` values or
+        two-sided ``ShockSpectrumPair`` values. Mixing the two forms in a
+        single call is not allowed.
+
+    Returns
+    -------
+    object
+        Enveloped one-sided or two-sided shock-response spectrum,
+        matching the representation of the input sequence.
+
+    Notes
+    -----
+    This function accepts only spectra whose ERS compatibility metadata
+    identifies them as ``"shock_response_spectrum"``. For pair-valued
+    inputs, the negative and positive sides are enveloped independently.
     """
     if len(results) == 0:
         raise ValidationError("results must not be empty.")
@@ -107,10 +130,27 @@ def envelope_srs(results: Sequence[ERSResult | ShockSpectrumPair]) -> ERSResult 
 
 
 def envelope_pvss(results: Sequence[ERSResult | ShockSpectrumPair]) -> ERSResult | ShockSpectrumPair:
-    """Compute an envelope across compatible PVSS results.
+    """Compute an envelope across compatible pseudo-velocity shock spectra.
 
-    Accepts either a sequence of one-sided `ERSResult` values or a sequence of
-    sided `ShockSpectrumPair` values. Mixing the two forms is rejected.
+    Parameters
+    ----------
+    results : sequence
+        Sequence containing either one-sided ``ERSResult`` values or
+        two-sided ``ShockSpectrumPair`` values. Mixing the two forms in a
+        single call is not allowed.
+
+    Returns
+    -------
+    object
+        Enveloped one-sided or two-sided PVSS result, matching the
+        representation of the input sequence.
+
+    Notes
+    -----
+    This function accepts only spectra whose ERS compatibility metadata
+    identifies them as ``"pseudo_velocity_shock_spectrum"``. For
+    pair-valued inputs, the negative and positive sides are enveloped
+    independently.
     """
     if len(results) == 0:
         raise ValidationError("results must not be empty.")
