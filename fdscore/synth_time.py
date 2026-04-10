@@ -1,3 +1,12 @@
+"""Stochastic time-history synthesis from target PSDs.
+
+This module generates stationary Gaussian realizations whose ensemble
+power spectral density follows a prescribed one-sided PSD. The main use
+case is iterative inversion, where a candidate PSD is projected back into
+the time domain for cycle counting or other nonlinear response
+predictions.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -45,13 +54,19 @@ def synthesize_time_from_psd(
 
     Notes
     -----
-    This routine is typically used by iterative inversion predictors that map
-    a PSD to a synthetic time history.
+    This routine is typically used by iterative inversion predictors that
+    map a PSD to a synthetic time history.
 
     The generated realization is stationary and Gaussian by construction and
     preserves the target PSD only in the statistical, ensemble sense. It does
     not reproduce transient structure, non-stationarity, or non-Gaussian
     tails.
+
+    The PSD is first interpolated onto the FFT frequency bins associated
+    with ``nfft``. Random phases are then assigned to the interior
+    one-sided bins, while the singleton DC and Nyquist bins are handled
+    separately to preserve the Hermitian structure required by the real
+    inverse FFT.
 
     For finite durations, Welch estimates from the synthesized signal will not
     match the input PSD exactly point by point.

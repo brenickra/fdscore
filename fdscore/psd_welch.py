@@ -1,3 +1,12 @@
+"""Welch PSD estimation for vibration and inversion workflows.
+
+This module provides the library's standard power spectral density
+estimator for stationary time histories. The implementation is a thin
+validated wrapper around ``scipy.signal.welch``, with explicit
+handling of positivity, optional band cropping, and metadata-friendly
+error reporting.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -25,19 +34,32 @@ def compute_psd_welch(
         PSD-estimation settings. The current implementation supports only
         ``method="welch"``.
 
-    Notes
-    -----
-    This helper is IO-free and purely numerical.
-
-    Tiny negative PSD values arising from numerical noise are clamped to zero.
-    Materially negative values raise ``ValidationError``.
-
     Returns
     -------
     f_hz : numpy.ndarray
         One-dimensional frequency grid in Hz.
     psd_values : numpy.ndarray
         One-dimensional PSD values in units squared per hertz.
+
+    Notes
+    -----
+    This helper is purely numerical and performs no file I/O.
+
+    The output is the one-sided PSD returned by Welch's method under the
+    requested detrending, window, overlap, and segment-length settings.
+    When ``psd.fmin`` or ``psd.fmax`` is provided, the spectrum is
+    cropped after estimation.
+
+    Tiny negative PSD values caused by floating-point noise are clipped to
+    zero. Materially negative values are rejected because they would
+    invalidate downstream log-domain operations and stochastic synthesis.
+
+    References
+    ----------
+    Welch, P. D. (1967). The use of the fast Fourier transform for the
+    estimation of power spectra: A method based on time averaging over
+    short, modified periodograms. *IEEE Transactions on Audio and
+    Electroacoustics*, 15(2), 70-73.
     """
     if psd.method != "welch":
         raise ValidationError("PSDParams.method must be 'welch'.")

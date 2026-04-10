@@ -1,3 +1,11 @@
+"""Time-domain extreme-response spectra via FFT-domain SDOF reconstruction.
+
+This module computes extreme-response spectra by applying the SDOF
+transfer matrix to the FFT of an input time history and reconstructing
+oscillator responses in batches. The current public API targets peak
+absolute responses for the chosen SDOF metric.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -62,12 +70,53 @@ def compute_ers_time(
 ) -> ERSResult:
     """Compute time-domain ERS by reconstructing SDOF responses in the FFT domain.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional input time history.
+    fs : float
+        Sampling rate in Hz.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    detrend : {"linear", "mean", "none"}, optional
+        Preprocessing mode applied before the FFT.
+    strict_nyquist : bool, optional
+        Whether oscillator frequencies at or above Nyquist should raise
+        an error instead of being clipped.
+    batch_size : int, optional
+        Number of oscillator responses reconstructed simultaneously in
+        each FFT batch.
+    peak_mode : {"abs"}, optional
+        Peak convention for the ERS. The current implementation supports
+        only absolute peaks.
+    plan : FDSTimePlan or None, optional
+        Optional reusable transfer plan matching the current sampling and
+        oscillator configuration.
+
+    Returns
+    -------
+    ERSResult
+        Extreme-response spectrum evaluated on the validated oscillator
+        grid.
+
     Notes
     -----
-    - The ERS is tied to the selected `sdof.metric`.
-    - The current implementation supports `peak_mode="abs"` only.
-    - A compatible `FDSTimePlan` can be reused because it stores only transfer data
-      for a fixed `(fs, n_samples, sdof.metric, q, f-grid)` configuration.
+    The ERS is tied to the selected ``sdof.metric`` and therefore may
+    represent absolute acceleration, relative displacement, relative
+    velocity, or pseudo-velocity depending on the chosen SDOF setup.
+
+    A compatible ``FDSTimePlan`` can be reused because it stores only the
+    transfer data for a fixed ``(fs, n_samples, metric, q, f-grid)``
+    configuration. Reuse avoids rebuilding the transfer matrix on
+    repeated calls with the same sampling contract.
+
+    The computational pipeline is:
+
+    1. Validate the SDOF definition and requested frequency grid.
+    2. Enforce or apply Nyquist handling.
+    3. Preprocess the input signal.
+    4. Reconstruct oscillator responses in FFT batches.
+    5. Extract the peak absolute response for each oscillator.
     """
     validate_sdof(sdof)
 
