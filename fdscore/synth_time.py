@@ -16,41 +16,45 @@ def synthesize_time_from_psd(
     nfft: int | None = None,
     remove_mean: bool = True,
 ) -> np.ndarray:
-    """Synthesize a stationary Gaussian time history from a **one-sided** PSD using random phase IFFT.
+    """Synthesize a stationary Gaussian time history from a one-sided PSD.
 
     Parameters
     ----------
-    f_psd_hz, psd:
-        One-sided PSD definition (Hz, units^2/Hz). Must be same shape and strictly increasing in frequency.
-    fs:
-        Sampling rate [Hz]
-    duration_s:
-        Desired duration [s]. Output length is `N = round(duration_s*fs)`.
-    seed:
-        Random seed for reproducibility.
-    nfft:
-        FFT length. If None, uses next power-of-two >= N.
-        If provided, must be >= N.
-    remove_mean:
-        If True, subtracts the mean after synthesis.
+    f_psd_hz : numpy.ndarray
+        One-dimensional one-sided PSD frequency grid in Hz.
+    psd : numpy.ndarray
+        One-dimensional one-sided PSD values in units squared per hertz.
+    fs : float
+        Sampling rate in Hz.
+    duration_s : float
+        Desired duration in seconds. The output length is
+        ``N = round(duration_s * fs)``.
+    seed : int or None
+        Random seed used for reproducible phase generation.
+    nfft : int or None
+        FFT length used for synthesis. If ``None``, the next power of two
+        greater than or equal to ``N`` is used. If provided, it must satisfy
+        ``nfft >= N``.
+    remove_mean : bool
+        If ``True``, subtract the sample mean after synthesis.
 
     Returns
     -------
-    x : ndarray
-        Time history of length N.
+    numpy.ndarray
+        Synthesized time history of length ``N``.
 
     Notes
     -----
     This routine is typically used by iterative inversion predictors that map
     a PSD to a synthetic time history.
 
-    The generated realization:
-    - is stationary and Gaussian by construction
-    - preserves the target PSD only in the statistical/ensemble sense
-    - does not reproduce transient structure, non-stationarity, or non-Gaussian tails
+    The generated realization is stationary and Gaussian by construction and
+    preserves the target PSD only in the statistical, ensemble sense. It does
+    not reproduce transient structure, non-stationarity, or non-Gaussian
+    tails.
 
-    For finite durations, Welch estimates from the synthesized signal will not match
-    the input PSD exactly point-by-point.
+    For finite durations, Welch estimates from the synthesized signal will not
+    match the input PSD exactly point by point.
     """
     f_psd = np.asarray(f_psd_hz, dtype=float).reshape(-1)
     P = np.asarray(psd, dtype=float).reshape(-1)

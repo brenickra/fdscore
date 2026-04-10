@@ -67,20 +67,42 @@ def prepare_fds_time_plan(
     sdof: SDOFParams,
     strict_nyquist: bool = True,
 ) -> FDSTimePlan:
-    """Precompute and store transfer data for repeated `compute_fds_time` calls.
+    r"""Precompute the FFT-domain transfer data for repeated FDS evaluations.
 
-    A plan avoids rebuilding the FFT-domain transfer matrix for every repeated call
-    with the same `(fs, n_samples, sdof)` configuration.
+    A time-domain FDS call repeatedly uses the same oscillator grid, damping,
+    and FFT-bin transfer matrix when the sampling configuration is fixed.
+    ``FDSTimePlan`` stores that reusable state so that repeated calls can skip
+    transfer-matrix reconstruction.
 
-    Memory tradeoff
-    ---------------
-    The full transfer matrix `H` is stored explicitly as `complex128` with shape
-    `(len(f0), n_fft_bins)`. Memory therefore scales approximately as:
+    Parameters
+    ----------
+    fs:
+        Sampling rate in Hz.
+    n_samples:
+        Number of samples in the time histories that will reuse this plan.
+    sdof:
+        Oscillator-grid definition and chosen response metric.
+    strict_nyquist:
+        If ``True``, frequencies above Nyquist raise ``ValidationError``. If
+        ``False``, the frequency grid is truncated to the valid Nyquist range.
 
-        len(f0) * n_fft_bins * 16 bytes
+    Returns
+    -------
+    FDSTimePlan
+        Reusable transfer plan containing the validated oscillator grid, the
+        implied damping ratio, and the complex FFT-domain transfer matrix.
 
-    For example, 400 oscillators and a 4 s signal at 1 kHz correspond to about
-    12 MB for the plan matrix alone.
+    Notes
+    -----
+    The stored matrix ``H`` is materialized as ``complex128`` with shape
+    ``(len(f0), n_fft_bins)``. Memory therefore scales approximately as
+
+    .. math::
+
+       len(f_0) \times n_{fft\_bins} \times 16 \text{ bytes}
+
+    so plans trade memory for speed. For example, 400 oscillators and a 4 s
+    signal sampled at 1 kHz require roughly 12 MB for the matrix alone.
     """
     validate_sdof(sdof)
 
@@ -123,27 +145,97 @@ def compute_fds_time(
     batch_size: int = 64,
     plan: FDSTimePlan | None = None,
 ) -> FDSResult:
-    """Compute time-domain FDS (Miner damage spectrum) for SDOF responses.
+    r"""Compute a time-domain Fatigue Damage Spectrum from an input history.
 
-    The result embeds a compatibility signature in `meta["compat"]`
-    and accepts an optional precomputed transfer `plan` for repeated calls.
+    The returned spectrum contains Miner damage evaluated independently for
+    each SDOF oscillator in the grid defined by ``sdof``. The result also
+    carries a compatibility signature in ``meta["compat"]`` so that downstream
+    operations, especially inversion, can verify that the same fatigue
+    conventions were used.
+
+    Pipeline
+    --------
+    The computation follows this sequence for a base-acceleration time history
+    ``x``:
+
+    1. Optionally preprocess the signal with ``preprocess_signal(...)`` using
+       the requested ``detrend`` mode.
+    2. Build or reuse the FFT-domain transfer matrix for the selected SDOF
+       response metric.
+    3. Transform the base signal with ``rfft`` and reconstruct each oscillator
+       response with ``irfft``.
+    4. Multiply each reconstructed response by ``p_scale``.
+    5. Apply ASTM-style rainflow counting and Miner's linear damage rule to
+       each oscillator response.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional base-acceleration time history.
+    fs : float
+        Sampling rate in Hz.
+    sn : SNParams
+        S-N curve definition used for Miner damage accumulation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    p_scale : float or None
+        Optional scale factor applied to each oscillator response before
+        rainflow counting. In physical workflows this represents the
+        stress-response proportionality used to convert response to the
+        fatigue-driving quantity.
+    detrend : str
+        Optional preprocessing mode passed to ``preprocess_signal(...)``.
+        Supported values are ``"linear"``, ``"mean"``, and ``"none"``.
+    strict_nyquist : bool
+        If ``True``, oscillator frequencies above Nyquist raise
+        ``ValidationError``. If ``False``, the grid is truncated to the valid
+        Nyquist range and the truncation is recorded in the result metadata.
+    batch_size : int
+        Number of oscillators processed per inverse FFT batch.
+    plan : FDSTimePlan or None
+        Optional precomputed transfer plan created by
+        :func:`prepare_fds_time_plan`.
+
+    Returns
+    -------
+    FDSResult
+        Damage spectrum on the validated oscillator grid. ``meta["compat"]``
+        records the fatigue and response conventions required by downstream
+        operations.
 
     Notes
     -----
-    `p_scale` multiplies the oscillator response before rainflow/Miner damage
-    counting. For fixed `slope_k`, the absolute damage level scales globally with:
+    The computation assumes a linear SDOF transfer from base acceleration to
+    the selected metric and evaluates fatigue on the reconstructed response
+    histories. For fixed ``slope_k``, the absolute damage level scales
+    globally as
 
-        p_scale**k / (ref_cycles * ref_stress**k)
+    .. math::
 
-    As a consequence:
-    - `p_scale`, `ref_stress`, and `ref_cycles` change the magnitude of `damage(f)`
-      but not its shape.
-    - When only relative FDS shape and equivalent inverted PSD are of interest,
-      use `SNParams.normalized(...)` together with `p_scale=1.0`.
+       \frac{p_{scale}^k}{N_{ref} S_{ref}^k}
 
-    If `p_scale` is omitted, `p_scale=1.0` is assumed only for normalized S-N
-    parameters (`ref_stress=1`, `ref_cycles=1`). Physical S-N workflows must pass
-    `p_scale` explicitly.
+    Therefore ``p_scale``, ``ref_stress``, and ``ref_cycles`` change the
+    magnitude of ``damage(f)`` but not its relative shape. When only the
+    spectral shape and a compatible FDS-to-PSD inversion matter, a normalized
+    S-N definition together with ``p_scale=1.0`` is usually sufficient.
+
+    The choice of ``detrend`` can materially affect low-frequency damage,
+    especially for displacement- and pseudo-velocity-based metrics, because
+    offsets and slow drifts are amplified by the low-frequency dynamics of the
+    oscillator bank.
+
+    If ``p_scale`` is omitted, ``p_scale=1.0`` is assumed only for normalized
+    S-N parameters with ``ref_stress=1`` and ``ref_cycles=1``. Physical
+    workflows must pass ``p_scale`` explicitly.
+
+    References
+    ----------
+    ASTM E1049-85(2017). Standard Practices for Cycle Counting in Fatigue
+        Analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
+    Crandall, S. H., & Mark, W. D. (1963). Random Vibrations in Mechanical
+        Systems. Academic Press.
     """
     validate_sn(sn)
     validate_sdof(sdof)

@@ -139,10 +139,48 @@ def compute_ers_sine(
     input_motion: Literal["acc", "vel", "disp"] = "acc",
     peak_mode: PeakMode = "abs",
 ) -> ERSResult:
-    """Compute deterministic ERS for a single-frequency harmonic base excitation.
+    r"""Compute deterministic ERS for a single harmonic base excitation.
 
-    The result is the response amplitude spectrum of the selected SDOF metric.
-    For a pure sine, the absolute peak response equals the response amplitude.
+    The returned spectrum is the response-amplitude spectrum of the selected
+    SDOF metric. For a pure sinusoid, the absolute peak response is equal to
+    the response amplitude, so the ERS is obtained directly from the harmonic
+    transfer magnitude.
+
+    Parameters
+    ----------
+    freq_hz:
+        Excitation frequency of the sinusoid in Hz.
+    amp:
+        Input amplitude expressed in the units implied by ``input_motion``.
+    sdof:
+        Oscillator-grid definition and response metric.
+    input_motion:
+        Type of the specified harmonic amplitude. The routine converts the
+        input to equivalent base-acceleration amplitude through
+
+        .. math::
+
+           a_{base,amp} =
+           \begin{cases}
+           amp, & \text{if input\_motion = "acc"} \\
+           \omega \, amp, & \text{if input\_motion = "vel"} \\
+           \omega^2 \, amp, & \text{if input\_motion = "disp"}
+           \end{cases}
+
+        where :math:`\omega = 2 \pi f`.
+    peak_mode:
+        Peak convention for the ERS. Only ``"abs"`` is currently supported.
+
+    Returns
+    -------
+    ERSResult
+        Response-amplitude spectrum on the oscillator grid.
+
+    Notes
+    -----
+    The result is deterministic and contains no cycle counting or statistical
+    assumptions. It is obtained from the magnitude of the linear SDOF transfer
+    function at the single forcing frequency.
     """
     peak_mode = _validate_peak_mode(peak_mode)
     f0, response, a_base = _response_amplitude_sine(
@@ -179,7 +217,58 @@ def compute_fds_sine(
     input_motion: Literal["acc", "vel", "disp"] = "acc",
     p_scale: float | None = None,
 ) -> FDSResult:
-    """Compute deterministic FDS for a single-frequency harmonic base excitation."""
+    r"""Compute deterministic FDS for a single harmonic base excitation.
+
+    This routine evaluates the damage caused by a sinusoidal base input of
+    frequency ``freq_hz`` acting for ``duration_s`` seconds. Each oscillator is
+    driven at the same forcing frequency and its steady-state response
+    amplitude is converted directly to Miner damage.
+
+    Parameters
+    ----------
+    freq_hz : float
+        Excitation frequency of the sinusoid in Hz.
+    amp : float
+        Input amplitude expressed in the units implied by ``input_motion``.
+    duration_s : float
+        Exposure duration in seconds.
+    sn : SNParams
+        S-N curve definition used for Miner damage accumulation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    input_motion : str
+        Optional input-motion type. Accepted values are ``"acc"``, ``"vel"``,
+        and ``"disp"``. Internally the routine
+        converts velocity and displacement amplitudes to equivalent
+        base-acceleration amplitude using :math:`\omega amp` and
+        :math:`\omega^2 amp`, respectively.
+    p_scale : float or None
+        Optional response scale factor applied before damage evaluation.
+
+    Returns
+    -------
+    FDSResult
+        Deterministic damage spectrum on the oscillator grid.
+
+    Notes
+    -----
+    For a single harmonic input, the damage model reduces to
+
+    .. math::
+
+       D(f_0) = N_{cycles}
+       \frac{\left(p_{scale} S(f_0)\right)^k}{C}
+
+    where :math:`N_{cycles} = f \, T`, :math:`S(f_0)` is the response load
+    amplitude derived from the chosen metric, and :math:`C` is the S-N
+    intercept. When ``sn.amplitude_from_range`` is ``False``, the full range
+    ``2 S(f_0)`` is used instead of alternating amplitude.
+
+    References
+    ----------
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
+    """
     validate_sn(sn)
     duration_s = _validate_harmonic_scalar(name="duration_s", value=duration_s, positive=True)
     p_scale_resolved = resolve_p_scale(p_scale=p_scale, sn=sn)
@@ -218,7 +307,29 @@ def compute_ers_dwell_profile(
     sdof: SDOFParams,
     peak_mode: PeakMode = "abs",
 ) -> ERSResult:
-    """Compute mission-level ERS as the envelope of deterministic dwell segments."""
+    r"""Compute mission-level ERS as the envelope of harmonic dwell segments.
+
+    Parameters
+    ----------
+    segments:
+        Sequence of deterministic harmonic dwell segments.
+    sdof:
+        Oscillator-grid definition and response metric.
+    peak_mode:
+        Peak convention for the ERS. Only ``"abs"`` is currently supported.
+
+    Returns
+    -------
+    ERSResult
+        Pointwise envelope of the ERS results produced by the individual
+        segments.
+
+    Notes
+    -----
+    Each segment is evaluated independently with :func:`compute_ers_sine`, and
+    the final result is the pointwise maximum across segments on a compatible
+    oscillator grid.
+    """
     if len(segments) == 0:
         raise ValidationError("segments must not be empty.")
     results = [
@@ -241,7 +352,35 @@ def compute_fds_dwell_profile(
     sdof: SDOFParams,
     p_scale: float | None = None,
 ) -> FDSResult:
-    """Compute mission-level FDS as the sum of deterministic dwell-segment damage spectra."""
+    r"""Compute mission-level FDS as the sum of harmonic dwell-segment damage.
+
+    Parameters
+    ----------
+    segments : collections.abc.Sequence
+        Sequence of :class:`fdscore.types.SineDwellSegment` dwell segments.
+    sn : SNParams
+        S-N curve definition used for Miner damage accumulation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    p_scale : float or None
+        Optional response scale factor applied before damage evaluation.
+
+    Returns
+    -------
+    FDSResult
+        Damage spectrum equal to the sum of the per-segment deterministic FDS
+        results.
+
+    Notes
+    -----
+    The function assumes linear cumulative damage and therefore sums the
+    independent damage spectra computed for each dwell segment.
+
+    References
+    ----------
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
+    """
     if len(segments) == 0:
         raise ValidationError("segments must not be empty.")
     results = [
@@ -271,7 +410,42 @@ def compute_ers_sine_sweep(
     spacing: SweepSpacing = "log",
     n_steps: int = 200,
 ) -> ERSResult:
-    """Approximate deterministic ERS for a sine sweep via dwell discretization."""
+    r"""Approximate deterministic ERS for a sine sweep via dwell discretization.
+
+    Parameters
+    ----------
+    f_start_hz:
+        Sweep start frequency in Hz.
+    f_stop_hz:
+        Sweep stop frequency in Hz.
+    amp:
+        Input amplitude expressed in the units implied by ``input_motion``.
+    duration_s:
+        Total sweep duration in seconds.
+    sdof:
+        Oscillator-grid definition and response metric.
+    input_motion:
+        Type of the specified harmonic amplitude.
+    peak_mode:
+        Peak convention for the ERS. Only ``"abs"`` is currently supported.
+    spacing:
+        Frequency spacing of the dwell discretization, either ``"linear"`` or
+        ``"log"``.
+    n_steps:
+        Number of dwell segments used to approximate the sweep.
+
+    Returns
+    -------
+    ERSResult
+        Deterministic ERS approximation of the sweep.
+
+    Notes
+    -----
+    The sweep is approximated as a sequence of constant-frequency dwell
+    segments of equal duration. Convergence improves as ``n_steps`` increases,
+    especially near sharp resonances and for logarithmic sweeps spanning large
+    frequency ranges.
+    """
     segments = _build_sine_sweep_segments(
         f_start_hz=f_start_hz,
         f_stop_hz=f_stop_hz,
@@ -310,7 +484,50 @@ def compute_fds_sine_sweep(
     spacing: SweepSpacing = "log",
     n_steps: int = 200,
 ) -> FDSResult:
-    """Approximate deterministic FDS for a sine sweep via dwell discretization."""
+    r"""Approximate deterministic FDS for a sine sweep via dwell discretization.
+
+    Parameters
+    ----------
+    f_start_hz : float
+        Sweep start frequency in Hz.
+    f_stop_hz : float
+        Sweep stop frequency in Hz.
+    amp : float
+        Input amplitude expressed in the units implied by ``input_motion``.
+    duration_s : float
+        Total sweep duration in seconds.
+    sn : SNParams
+        S-N curve definition used for Miner damage accumulation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    input_motion : str
+        Optional input-motion type. Accepted values are ``"acc"``, ``"vel"``,
+        and ``"disp"``.
+    p_scale : float or None
+        Optional response scale factor applied before damage evaluation.
+    spacing : str
+        Optional spacing mode for the dwell discretization. Accepted values
+        are ``"linear"`` and ``"log"``.
+    n_steps : int
+        Number of dwell segments used to approximate the sweep.
+
+    Returns
+    -------
+    FDSResult
+        Deterministic FDS approximation of the sweep.
+
+    Notes
+    -----
+    The result is obtained by discretizing the sweep into harmonic dwell
+    segments and summing their individual damage spectra. Convergence with
+    respect to ``n_steps`` should be checked whenever the sweep crosses narrow
+    resonances or when the requested damage estimate is used quantitatively.
+
+    References
+    ----------
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
+    """
     segments = _build_sine_sweep_segments(
         f_start_hz=f_start_hz,
         f_stop_hz=f_stop_hz,

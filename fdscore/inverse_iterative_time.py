@@ -30,46 +30,118 @@ def invert_fds_iterative_time(
     nfft: int | None = None,
     target_duration_s: float | None = None,
 ) -> PSDResult:
-    """Iteratively synthesize an acceleration PSD that matches a target FDS using the **time-domain** predictor.
+    r"""Iteratively synthesize a PSD that matches a target FDS with a time predictor.
 
-    Predictor
+    This routine solves the inverse problem "find an acceleration PSD whose
+    time-domain FDS matches ``target``" by repeatedly synthesizing time
+    histories from the candidate PSD and re-evaluating
+    :func:`fdscore.fds_time.compute_fds_time`.
+
+    Algorithm
     ---------
-    Each iteration synthesizes one or more time histories from the candidate PSD, computes FDS via
-    `compute_fds_time(...)`, then updates the PSD multiplicatively using an influence matrix derived from the SDOF transfer.
+    Let :math:`F_{target}` be the target damage spectrum and let
+    :math:`F(P)` be the average time-domain predictor response for candidate
+    PSD :math:`P`. The method builds a PSD-to-oscillator influence matrix from
+    the SDOF transfer model and converts it to a normalized redistribution
+    matrix :math:`\alpha`.
 
-    The predictor currently uses a fixed internal evaluation policy:
-    - `synthesize_time_from_psd(..., remove_mean=True)`
-    - `compute_fds_time(..., detrend="none", batch_size=64)`
+    For each predictor call, the routine synthesizes ``n_realizations``
+    random-phase time histories from :math:`P`, evaluates their FDS with
+    :func:`fdscore.fds_time.compute_fds_time`, and averages the resulting
+    damage spectra.
 
-    Output is an **acceleration PSD** on the provided `f_psd_hz` grid.
+    Oscillator-wise multiplicative gains are computed as
+
+    .. math::
+
+       s_i = \left(\frac{F_{target, i}}{F_i(P)}\right)^{2 / k}
+
+    and clipped to the interval defined by ``gain_min`` and ``gain_max``.
+    Those gains are projected back to PSD bins through
+
+    .. math::
+
+       u = \exp\left(\alpha^T \log(s)\right)
+
+    The candidate PSD is then updated multiplicatively as
+
+    .. math::
+
+       P \leftarrow P \, u^{\gamma}
+
+    followed by optional smoothing and prior blending. The updated PSD is
+    re-evaluated and scored by the median absolute log10-domain mismatch.
 
     Parameters
     ----------
-    target:
-        Target FDS result (damage vs f0). Must carry `meta["compat"]`.
-    f_psd_hz, psd_seed:
-        Grid and seed for the synthesized acceleration PSD.
-    fs, duration_s:
-        Sampling rate and synthetic duration used in time synthesis for the predictor.
-    target_duration_s:
-        Optional duration to which predictor damage is scaled, using
-        `damage_scaled = damage_synth * (target_duration_s / duration_s)`.
-        If None, uses `duration_s` (no scaling).
-    n_realizations:
-        Number of random-phase realizations per iteration (averaged in damage space).
-    seed:
-        Seed for reproducible synthesis. Different realizations use `seed + r`.
-    nfft:
-        FFT length for synthesis. If None, uses next power-of-two >= N.
+    target : FDSResult
+        Target FDS result. It must carry compatibility metadata.
+    f_psd_hz : numpy.ndarray
+        Frequency grid in Hz for the synthesized acceleration PSD.
+    psd_seed : numpy.ndarray
+        Strictly positive seed PSD defined on ``f_psd_hz``.
+    fs : float
+        Sampling rate in Hz used during time synthesis and FDS evaluation.
+    duration_s : float
+        Synthetic duration in seconds used for each predictor realization.
+    sn : SNParams
+        S-N curve definition used by the time-domain predictor.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric used by the predictor.
+    p_scale : float
+        Response scale factor used by the predictor. It must be compatible with
+        the way ``target`` was computed.
+    params : IterativeInversionParams
+        Iteration and regularization parameters.
+    n_realizations : int
+        Number of random-phase synthesized histories averaged per predictor
+        call.
+    seed : int or None
+        Seed for reproducible synthesis. Realization ``r`` uses ``seed + r``.
+    nfft : int or None
+        FFT length used during synthesis. If ``None``, the synthesis routine
+        chooses the next power of two.
+    target_duration_s : float or None
+        Optional duration to which the predictor damage is rescaled through
+
+        .. math::
+
+           D_{scaled} = D_{synth} \frac{T_{target}}{T_{synth}}
+
+        If ``None``, no duration scaling is applied.
 
     Returns
     -------
     PSDResult
-        Contains `meta["diagnostics"]` with convergence history, predictor-cost metadata,
-        and the fixed predictor configuration used internally.
-        `meta["param_usage"]` records the subset of `IterativeInversionParams`
-        consumed by the time-domain engine and the effective smoothing window after
-        even-to-odd promotion.
+        Synthesized acceleration PSD on ``f_psd_hz``. The result metadata
+        includes convergence diagnostics, predictor configuration, and
+        explicit per-engine parameter usage.
+
+    Notes
+    -----
+    The inversion heuristic implemented here is library-specific. It combines a
+    stochastic time-history predictor with a multiplicative PSD update and does
+    not correspond to a published closed-form inversion formula.
+
+    The convergence metric stored in
+    ``meta["diagnostics"]["best_err"]`` is the median absolute log10-domain
+    mismatch over bins where both target and predicted damage are positive.
+
+    The main loop performs two predictor evaluations per iteration: one on the
+    current PSD to derive oscillator-wise gains, and one after the update to
+    score the candidate that may become the best solution.
+
+    Because the predictor is stochastic, convergence depends on
+    ``n_realizations``, ``seed``, ``duration_s``, and ``nfft``. The fixed
+    internal predictor policy is recorded in
+    ``meta["diagnostics"]["predictor_config"]`` and currently uses
+    ``synthesize_time_from_psd(remove_mean=True)`` together with
+    ``compute_fds_time(detrend="none", batch_size=64)``.
+
+    References
+    ----------
+    ASTM E1049-85(2017). Standard Practices for Cycle Counting in Fatigue Analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied Mechanics, 12(3), A159-A164.
     """
     if not np.isfinite(fs) or float(fs) <= 0:
         raise ValidationError("fs must be finite and > 0.")

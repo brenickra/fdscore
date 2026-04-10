@@ -27,36 +27,100 @@ def invert_fds_iterative_spectral(
     p_scale: float,
     params: IterativeInversionParams = IterativeInversionParams(),
 ) -> PSDResult:
-    """Iteratively synthesize an acceleration PSD that matches a target FDS using the *spectral* Dirlik predictor.
+    r"""Iteratively synthesize a PSD that matches a target FDS with a spectral predictor.
 
-    The predictor used internally is `compute_fds_spectral_psd(...)` with the
-    provided `sn`, `sdof`, `p_scale`, and `duration_s`.
-    This function outputs an **acceleration PSD** on the user-provided `f_psd_hz` grid.
+    This routine solves the inverse problem "find an acceleration PSD whose
+    predicted FDS matches ``target``" by repeatedly calling the spectral
+    predictor :func:`fdscore.fds_spectral.compute_fds_spectral_psd`.
+
+    Algorithm
+    ---------
+    Let :math:`F_{target}` be the target damage spectrum and let
+    :math:`F(P)` be the spectral predictor evaluated at candidate PSD
+    :math:`P`. The method builds a PSD-to-oscillator influence matrix from
+    the SDOF transfer model and converts it to a normalized redistribution
+    matrix :math:`\alpha`.
+
+    Oscillator-wise multiplicative gains are computed as
+
+    .. math::
+
+       s_i = \left(\frac{F_{target, i}}{F_i(P)}\right)^{2 / k}
+
+    and clipped to the interval defined by ``gain_min`` and ``gain_max``.
+    Those gains are projected back to PSD bins through
+
+    .. math::
+
+       u = \exp\left(\alpha^T \log(s)\right)
+
+    The candidate PSD is then updated multiplicatively as
+
+    .. math::
+
+       P \leftarrow P \, u^{\gamma}
+
+    followed by optional smoothing, prior blending, and edge capping. The
+    updated PSD is re-evaluated and scored by the median absolute log10-domain
+    mismatch.
+
+    The function always outputs a one-sided acceleration PSD on the user
+    supplied ``f_psd_hz`` grid.
 
     Parameters
     ----------
-    target:
-        Target FDS (damage vs oscillator frequency f0).
-    f_psd_hz:
-        Frequency grid for the synthesized PSD.
-    psd_seed:
-        Seed acceleration PSD on `f_psd_hz` (must be positive).
-    duration_s:
-        Benchmark/test duration for damage evaluation in the predictor.
-    sn, sdof, p_scale:
-        Must match the way `target` was computed (for meaningful inversion).
-    params:
-        Iteration and regularization knobs.
+    target : FDSResult
+        Target FDS result, expressed as damage versus oscillator frequency.
+    f_psd_hz : numpy.ndarray
+        Frequency grid in Hz for the synthesized acceleration PSD.
+    psd_seed : numpy.ndarray
+        Strictly positive seed PSD defined on ``f_psd_hz``.
+    duration_s : float
+        Exposure duration used by the spectral predictor.
+    sn : SNParams
+        S-N curve definition used by the predictor.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric used by the predictor.
+    p_scale : float
+        Response scale factor used by the predictor. It must be compatible with
+        the way ``target`` was computed.
+    params : IterativeInversionParams
+        Iteration and regularization parameters.
 
     Returns
     -------
     PSDResult
-        `psd` is the synthesized acceleration PSD on `f_psd_hz`.
-        `meta["diagnostics"]` includes best error, per-iteration history, post-stage
-        diagnostics, and convergence metadata.
-        `meta["param_usage"]` records which `IterativeInversionParams` fields are
-        used by the spectral engine, including the effective smoothing windows after
-        even-to-odd promotion.
+        Synthesized acceleration PSD on ``f_psd_hz``. The result metadata
+        includes convergence diagnostics, reconstructed FDS traces, and
+        explicit per-engine parameter usage.
+
+    Notes
+    -----
+    The update strategy implemented here is a library-specific multiplicative
+    inversion heuristic. It is not claimed as a closed-form method from the
+    fatigue literature.
+
+    The convergence metric stored in
+    ``meta["diagnostics"]["best_err"]`` is the median absolute log10-domain
+    mismatch over bins where both target and predicted damage are positive:
+
+    .. math::
+
+       median\left(\left|\log_{10} F_{pred} - \log_{10} F_{target}\right|\right)
+
+    The main loop performs two predictor evaluations per iteration: one on the
+    current PSD to derive oscillator-wise gains, and one after the multiplicative
+    update to score the candidate that may become the new best solution.
+
+    If post-smoothing and post-refinement are enabled, an additional spectral
+    inversion pass is launched from the smoothed candidate using a reduced
+    parameter set. The metadata distinguishes whether the best result came from
+    the main loop, the post-smooth stage, or the post-refine stage.
+
+    References
+    ----------
+    Dirlik, T. (1985). Application of computers in fatigue analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied Mechanics, 12(3), A159-A164.
     """
     if not np.isfinite(duration_s) or float(duration_s) <= 0:
         raise ValidationError("duration_s must be finite and > 0.")

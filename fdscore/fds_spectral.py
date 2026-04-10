@@ -30,46 +30,79 @@ def compute_fds_spectral_psd(
     sdof: SDOFParams,
     p_scale: float | None = None,
 ) -> FDSResult:
-    """Compute spectral FDS using Dirlik (FLife) from an input base-acceleration PSD.
+    r"""Compute a spectral Fatigue Damage Spectrum from an acceleration PSD.
 
-    Steps
-    -----
-    1) Build oscillator grid (sdof)
-    2) Build transfer H(f) from base acceleration PSD to chosen metric response PSD
-    3) For each oscillator, compute response PSD:
-         P_resp = (p_scale^2) * |H|^2 * P_base
-    4) Use FLife.Dirlik to compute life, then Miner damage as:
-         damage = duration_s / life
+    This routine evaluates fatigue damage oscillator by oscillator using a
+    PSD-domain response model and Dirlik's spectral fatigue approximation as
+    implemented by ``FLife``.
+
+    Pipeline
+    --------
+    The computation first builds the oscillator grid defined by ``sdof`` and
+    the transfer matrix from base acceleration PSD to the selected response
+    metric. For each oscillator, the response PSD is then computed as
+
+    .. math::
+
+       P_{resp}(f; f_0) =
+       p_{scale}^2 \left| H(f; f_0) \right|^2 P_{base}(f)
+
+    Dirlik's method is applied to that response PSD to estimate life, and
+    Miner damage is recovered through
+
+    .. math::
+
+       D(f_0) = \frac{T}{life(f_0)}
 
     Parameters
     ----------
-    f_psd_hz, psd_baseacc:
-        Input PSD grid and values (one-sided). Must be same shape.
-    duration_s:
+    f_psd_hz : numpy.ndarray
+        One-sided input PSD frequency grid in Hz.
+    psd_baseacc : numpy.ndarray
+        One-sided base-acceleration PSD defined on ``f_psd_hz``.
+    duration_s : float
         Exposure duration associated with the PSD.
-    p_scale:
-        Additional scale applied to the response time series/PSD before damage counting.
-        This value must be consistent with the FDS and inversion workflow being used.
-
-    Notes
-    -----
-    For fixed `slope_k`, `p_scale`, `ref_stress`, and `ref_cycles` act as a global
-    damage scaling factor. They affect absolute damage magnitude, but not the shape
-    of the FDS. Use `SNParams.normalized(...)` with `p_scale=1.0` when a normalized
-    workflow is sufficient.
-
-    Dirlik is a spectral fatigue approximation. It is not the same algorithm as
-    time-domain rainflow counting on a realized signal, so absolute FDS levels from
-    spectral and time-domain routes should not be expected to match exactly.
-
-    Input PSD values are expected to be non-negative. Tiny negative values consistent
-    with numerical noise are clamped to zero. Materially negative values raise
-    `ValidationError`.
+    sn : SNParams
+        S-N curve definition used by the Dirlik life calculation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    p_scale : float or None
+        Additional scale factor applied to the response quantity before damage
+        evaluation. This must match the fatigue convention used elsewhere in
+        the workflow.
 
     Returns
     -------
     FDSResult
-        Damage spectrum on the oscillator grid.
+        Damage spectrum on the oscillator grid defined by ``sdof``.
+
+    Notes
+    -----
+    Dirlik is a spectral fatigue approximation derived from response-PSD
+    moments. It is not the same algorithm as rainflow counting on a realized
+    time history, so absolute levels from ``compute_fds_spectral_psd(...)`` and
+    ``compute_fds_time(...)`` should not be expected to match exactly.
+
+    Agreement with time-domain rainflow tends to improve when the response is
+    well represented as a stationary Gaussian process and the record is long
+    enough that the PSD is a stable descriptor. Differences grow for short
+    records, strongly non-stationary environments, transient content, and
+    non-Gaussian responses.
+
+    For fixed ``slope_k``, ``p_scale``, ``ref_stress``, and ``ref_cycles`` act
+    only as a global damage scaling factor. They change the magnitude of
+    ``damage(f)`` but not its relative shape. Use
+    ``SNParams.normalized(...)`` with ``p_scale=1.0`` when a normalized
+    workflow is sufficient.
+
+    Input PSD values are expected to be non-negative. Tiny negative values
+    consistent with numerical noise are clamped to zero; materially negative
+    values raise ``ValidationError``.
+
+    References
+    ----------
+    Dirlik, T. (1985). Application of computers in fatigue analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied Mechanics, 12(3), A159-A164.
     """
     validate_sn(sn)
     validate_sdof(sdof)
@@ -134,16 +167,50 @@ def compute_fds_spectral_time(
     duration_s: float | None = None,
     p_scale: float | None = None,
 ) -> FDSResult:
-    """Compute spectral FDS from a time history by estimating PSD internally (Welch) then using Dirlik.
+    r"""Compute a spectral FDS from a time history through Welch plus Dirlik.
 
-    If `duration_s` is None, uses `len(x)/fs`.
+    This convenience route first estimates a one-sided acceleration PSD from
+    the input time history and then delegates to
+    :func:`fdscore.fds_spectral.compute_fds_spectral_psd`.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional base-acceleration time history.
+    fs : float
+        Sampling rate in Hz.
+    sn : SNParams
+        S-N curve definition used for the fatigue calculation.
+    sdof : SDOFParams
+        Oscillator-grid definition and response metric.
+    psd : PSDParams
+        PSD-estimation configuration passed to ``compute_psd_welch(...)``.
+    duration_s : float or None
+        Exposure duration associated with the damage estimate. If ``None``,
+        uses ``len(x) / fs``.
+    p_scale : float or None
+        Optional scale factor applied to the response quantity before damage
+        evaluation.
+
+    Returns
+    -------
+    FDSResult
+        Spectral damage spectrum evaluated from the internally estimated PSD.
+
+    Notes
+    -----
     This route combines two approximation layers:
-    - PSD estimation through Welch
-    - spectral fatigue damage through Dirlik
 
-    Differences relative to `compute_fds_time(...)` or to `compute_fds_spectral_psd(...)`
-    with an explicit reference PSD are therefore expected for finite-length signals.
+    1. Welch estimation of the PSD from a finite realization.
+    2. Dirlik spectral fatigue damage from the estimated PSD.
+
+    Differences relative to ``compute_fds_time(...)`` or to
+    ``compute_fds_spectral_psd(...)`` with a reference PSD are therefore
+    expected for finite-length signals.
+
+    References
+    ----------
+    Dirlik, T. (1985). Application of computers in fatigue analysis.
     """
     if not bool(psd.onesided):
         raise ValidationError("compute_fds_spectral_time requires PSDParams.onesided=True.")

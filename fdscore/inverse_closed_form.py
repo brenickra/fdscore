@@ -10,7 +10,7 @@ EPS = 1e-30
 
 
 def compute_damage_to_dp_factor(*, p_scale: float, b: float, c_sn: float) -> float:
-    """Return the proportionality factor K such that Damage = K * DP.
+    r"""Return the proportionality factor K such that Damage = K * DP.
 
     Derivation
     ----------
@@ -20,25 +20,42 @@ def compute_damage_to_dp_factor(*, p_scale: float, b: float, c_sn: float) -> flo
     1963, p. 117). Integrating Miner's rule against that distribution yields
     (H&P 1995, Eq. 8):
 
-        D = (ν₀ · T / C) · (√2 · σ_S)^b · Γ(1 + b/2)
+    .. math::
 
-    where ν₀ is the mean zero-upcrossing rate, T is duration, σ_S is the
-    stress standard deviation, and C = c in the S-N curve N = c·S^(-b).
+       D = \left(\frac{\nu_0 T}{C}\right)
+       \left(\sqrt{2} \, \sigma_S\right)^b
+       \Gamma\left(1 + \frac{b}{2}\right)
+
+    where :math:`\nu_0` is the mean zero-upcrossing rate, :math:`T` is
+    duration, :math:`\sigma_S` is the stress standard deviation, and
+    :math:`C = c` in the S-N curve :math:`N = c S^{-b}`.
 
     The stress standard deviation is related to the input acceleration PSD
-    by (H&P 1995, Eq. 10, assuming ζ < 0.1):
+    by (H&P 1995, Eq. 10, assuming :math:`\zeta < 0.1`):
 
-        σ_S ≈ p_scale · √(G_aa(f_n) / (16π · f_n · ζ))
+    .. math::
+
+       \sigma_S \approx p_{scale}
+       \sqrt{\frac{G_{aa}(f_n)}{16 \pi f_n \zeta}}
 
     Substituting into the damage expression and isolating the
-    environment-dependent part as DP(f_n) = f_n·T·(G_aa/(f_n·ζ))^(b/2)
-    (H&P 1995, Eq. 12), the remaining factor is:
+    environment-dependent part as
 
-        K = (p_scale^b / C_SN) · Γ(1 + b/2) / (8π)^(b/2)
+    .. math::
 
-    Here `p_scale` plays the role of the stress-velocity proportionality
-    constant k in H&P Eq. 9, which relates modal velocity to peak stress.
-    That relationship — velocity as the stress-relevant quantity — is
+       DP(f_n) = f_n T
+       \left(\frac{G_{aa}}{f_n \zeta}\right)^{b / 2}
+
+    (H&P 1995, Eq. 12), the remaining factor is
+
+    .. math::
+
+       K = \frac{p_{scale}^b}{C_{SN}}
+       \frac{\Gamma\left(1 + b / 2\right)}{(8 \pi)^{b / 2}}
+
+    Here ``p_scale`` plays the role of the stress-velocity proportionality
+    constant :math:`k` in H&P Eq. 9, which relates modal velocity to peak
+    stress. That relationship, velocity as the stress-relevant quantity, is
     justified by Gaberson & Chalmers (1969) and Crandall (1962); see also
     the theoretical basis in H&P (1995), section "Estimates of Stress in
     Test Items".
@@ -46,38 +63,41 @@ def compute_damage_to_dp_factor(*, p_scale: float, b: float, c_sn: float) -> flo
     Inherited assumptions
     ---------------------
     - Single dominant resonant mode (SDOF behaviour).
-    - Lightly damped response: ζ < 0.1 (equivalently Q > 5).
-    - Input PSD approximately flat over the half-power bandwidth B_r ≈ 2ζ·f_n.
-    - Narrowband, stationary, Gaussian response → Rayleigh peak distribution.
+    - Lightly damped response: :math:`\zeta < 0.1` (equivalently :math:`Q > 5`).
+    - Input PSD approximately flat over the half-power bandwidth
+      :math:`B_r \approx 2 \zeta f_n`.
+    - Narrowband, stationary, Gaussian response leading to a Rayleigh peak
+      distribution.
 
     Parameters
     ----------
-    p_scale:
-        Stress-response scale factor (analogous to the proportionality
-        constant k in H&P 1995, Eq. 9). Must be > 0.
-    b:
-        S-N curve slope exponent (fatigue parameter). Must be > 0.
-    c_sn:
-        S-N curve intercept C = N_ref · S_ref^b. Must be > 0.
+    p_scale : float
+        Stress-response scale factor, analogous to the proportionality
+        constant :math:`k` in H&P 1995, Eq. 9. Must be greater than zero.
+    b : float
+        S-N curve slope exponent. Must be greater than zero.
+    c_sn : float
+        S-N curve intercept :math:`C = N_{ref} S_{ref}^b`. Must be greater
+        than zero.
 
     Returns
     -------
     float
-        Factor K > 0 such that Damage = K · DP.
+        Factor :math:`K > 0` such that :math:`Damage = K \, DP`.
 
     References
     ----------
     Henderson, G. R. & Piersol, A. G. (1995). "Fatigue Damage Related
         Descriptor for Random Vibration Test Environments." Sound and
-        Vibration, October 1995, pp. 20–24. Equations 8–12.
+        Vibration, October 1995, 20-24. Equations 8-12.
     Crandall, S. H. & Mark, W. D. (1963). Random Vibrations in Mechanical
-        Systems. Academic Press, New York. pp. 113–117.
+        Systems. Academic Press, New York. pp. 113-117.
     Gaberson, H. A. & Chalmers, R. H. (1969). "Modal Velocity as a
         Criterion of Shock Severity." Shock and Vibration Bulletin,
-        No. 40, Pt 2, pp. 31–49.
+        No. 40, Pt. 2, 31-49.
     Crandall, S. H. (1962). "Relationship between Stress and Velocity in
         Resonant Vibration." Journal of the Acoustical Society of America,
-        Vol. 34, No. 12, pp. 1960–1961.
+        34(12), 1960-1961.
     """
     p_scale = float(p_scale)
     b = float(b)
@@ -95,43 +115,51 @@ def compute_psd_from_fds_closed_form(
     b: float,
     test_duration_s: float,
 ) -> np.ndarray:
-    """Convert a Damage Potential (DP) spectrum to an acceleration PSD.
+    r"""Convert a Damage Potential (DP) spectrum to an acceleration PSD.
 
     This is the algebraic inverse of the Damage Potential definition
     (Henderson & Piersol, 1995, Eq. 12):
 
-        DP(f_n) = f_n · T · [G_aa(f_n) / (f_n · ζ)]^(b/2)
+    .. math::
 
-    Solving for G_aa yields:
+       DP(f_n) = f_n T
+       \left[\frac{G_{aa}(f_n)}{f_n \zeta}\right]^{b / 2}
 
-        G_aa(f_n) = f_n · ζ · [DP(f_n) / (f_n · T)]^(2/b)
+    Solving for :math:`G_{aa}` yields
+
+    .. math::
+
+       G_{aa}(f_n) = f_n \zeta
+       \left[\frac{DP(f_n)}{f_n T}\right]^{2 / b}
 
     which is the equation implemented here.
 
     Parameters
     ----------
-    f0_hz:
-        Oscillator natural frequencies [Hz].
-    dp_fds:
+    f0_hz : numpy.ndarray
+        Oscillator natural frequencies in Hz.
+    dp_fds : numpy.ndarray
         Damage Potential values at each oscillator frequency.
-    zeta:
-        Damping ratio ζ = 1 / (2Q). The derivation assumes ζ < 0.1.
-    b:
+    zeta : float
+        Damping ratio :math:`\zeta = 1 / (2Q)`. The derivation assumes
+        :math:`\zeta < 0.1`.
+    b : float
         S-N curve slope exponent.
-    test_duration_s:
-        Target test duration T [s].
+    test_duration_s : float
+        Target test duration :math:`T` in seconds.
 
     Returns
     -------
-    ndarray
-        One-sided acceleration PSD G_aa [input-units²/Hz] on the f0_hz grid.
+    numpy.ndarray
+        One-sided acceleration PSD :math:`G_{aa}` in input-units squared per
+        hertz on the ``f0_hz`` grid.
 
     Notes
     -----
     The result is the acceleration PSD that, when applied to a base-excited
-    SDOF oscillator at each natural frequency f_n with damping ratio ζ,
-    produces the same DP — and therefore the same fatigue damage — as the
-    input DP spectrum over duration T.
+    SDOF oscillator at each natural frequency :math:`f_n` with damping ratio
+    :math:`\zeta`, produces the same DP, and therefore the same fatigue
+    damage, as the input DP spectrum over duration :math:`T`.
 
     References
     ----------
@@ -160,11 +188,14 @@ def compute_fds_from_psd_closed_form(
     b: float,
     test_duration_s: float,
 ) -> np.ndarray:
-    """Convert an acceleration PSD to a Damage Potential (DP) spectrum.
+    r"""Convert an acceleration PSD to a Damage Potential (DP) spectrum.
 
     Direct application of Henderson & Piersol (1995), Eq. 12:
 
-        DP(f_n) = f_n · T · [G_aa(f_n) / (f_n · ζ)]^(b/2)
+    .. math::
+
+       DP(f_n) = f_n T
+       \left[\frac{G_{aa}(f_n)}{f_n \zeta}\right]^{b / 2}
 
     This is the forward direction of the closed-form relationship and is
     used primarily for round-trip reconstruction checks after inversion.
@@ -176,21 +207,22 @@ def compute_fds_from_psd_closed_form(
 
     Parameters
     ----------
-    f0_hz:
-        Oscillator natural frequencies [Hz].
-    psd:
-        One-sided acceleration PSD G_aa [units²/Hz].
-    zeta:
-        Damping ratio ζ = 1 / (2Q). Derivation assumes ζ < 0.1.
-    b:
+    f0_hz : numpy.ndarray
+        Oscillator natural frequencies in Hz.
+    psd : numpy.ndarray
+        One-sided acceleration PSD :math:`G_{aa}` in units squared per hertz.
+    zeta : float
+        Damping ratio :math:`\zeta = 1 / (2Q)`. The derivation assumes
+        :math:`\zeta < 0.1`.
+    b : float
         S-N curve slope exponent.
-    test_duration_s:
-        Exposure duration T [s].
+    test_duration_s : float
+        Exposure duration :math:`T` in seconds.
 
     Returns
     -------
-    ndarray
-        Damage Potential DP(f_n) on the f0_hz grid.
+    numpy.ndarray
+        Damage Potential :math:`DP(f_n)` on the ``f0_hz`` grid.
 
     References
     ----------
@@ -218,55 +250,72 @@ def invert_fds_closed_form(
     test_duration_s: float,
     strict_metric: bool = True,
 ) -> PSDResult:
-    """Invert an FDS to an equivalent acceleration PSD using the closed-form
+    r"""Invert an FDS to an equivalent acceleration PSD using the closed-form
     Henderson-Piersol method.
 
     Overview
     --------
-    The inversion proceeds in two steps:
+    The inversion proceeds in two steps. First, Miner damage is converted to a
+    Damage Potential spectrum using the proportionality factor ``K`` derived
+    from the S-N parameters and ``p_scale``:
 
-    1. **Damage → DP**: convert Miner damage values to the Damage Potential
-       spectrum using the proportionality factor K derived from the S-N
-       parameters and p_scale (see `compute_damage_to_dp_factor`):
+    .. math::
 
-           DP(f) = Damage(f) / K
+       DP(f) = \frac{Damage(f)}{K}
 
-    2. **DP → PSD**: apply the closed-form inverse of H&P (1995), Eq. 12:
+    Second, the closed-form inverse of H&P (1995), Eq. 12 is applied:
 
-           G_aa(f) = f · ζ · [DP(f) / (f · T)]^(2/b)
+    .. math::
 
-    The round-trip reconstruction error (median |log10(D_recon/D_target)|)
-    is stored in ``meta["reconstruction"]["med_abs_log10"]`` as a quality
-    indicator.
+       G_{aa}(f) = f \zeta
+       \left[\frac{DP(f)}{f T}\right]^{2 / b}
+
+    The round-trip reconstruction error stored in
+    ``meta["reconstruction"]["med_abs_log10"]`` is the median absolute value
+    of
+
+    .. math::
+
+       \log_{10}\left(\frac{D_{recon}}{D_{target}}\right)
 
     Metric restriction
     ------------------
-    This method is valid **only for** ``metric="pv"`` (pseudo-velocity).
+    This method is valid only for ``metric="pv"`` (pseudo-velocity).
 
     The physical justification follows from two independent lines of
     argument that converge on pseudo-velocity as the stress-relevant
     quantity:
 
-    - **Empirical / experimental**: Gaberson & Chalmers (1969) established
+    - Empirical / experimental: Gaberson & Chalmers (1969) established
       that modal velocity is the best single predictor of shock and
       vibration severity across a wide range of structures. Their work is
       explicitly cited by Henderson & Piersol (1995) as the basis for
-      using velocity — rather than acceleration or displacement — to
-      estimate stress.
-
-    - **Theoretical**: Crandall (1962) derived analytically that, for a
+      using velocity rather than acceleration or displacement to estimate
+      stress.
+    - Theoretical: Crandall (1962) derived analytically that, for a
       structure vibrating at resonance, peak stress is proportional to
       peak velocity, not peak acceleration or displacement. This result
       holds for geometrically simple structures (beams, plates under
       bending) and is the theoretical foundation cited by H&P (1995) in
       their Eq. 9.
 
-    For a lightly damped SDOF oscillator (ζ < 0.1), pseudo-velocity
-    PV = 2π·f₀·x_rel and relative velocity v_rel are approximately equal
-    at resonance, because the phase between displacement and velocity at
-    the resonant peak makes |v_rel| ≈ ω₀·|x_rel|. This equivalence
-    justifies using ``metric="pv"`` as a numerically convenient proxy for
-    relative velocity in the closed-form derivation.
+    For a lightly damped SDOF oscillator (:math:`\zeta < 0.1`),
+    pseudo-velocity
+
+    .. math::
+
+       PV = 2 \pi f_0 x_{rel}
+
+    and relative velocity :math:`v_{rel}` are approximately equal at
+    resonance, because the phase between displacement and velocity at the
+    resonant peak makes
+
+    .. math::
+
+       |v_{rel}| \approx \omega_0 |x_{rel}|
+
+    This equivalence justifies using ``metric="pv"`` as a numerically
+    convenient proxy for relative velocity in the closed-form derivation.
 
     Using ``metric="acc"``, ``"vel"``, or ``"disp"`` would require a
     different transfer function at resonance and a different proportionality
@@ -275,54 +324,55 @@ def invert_fds_closed_form(
     guard but does not make the derivation valid for those metrics.
 
     Global damage scaling cancellation
-    -----------------------------------
-    When ``target`` was computed with compatible settings, the absolute
-    damage scaling carried by ``p_scale``, ``ref_stress``, and
-    ``ref_cycles`` cancels exactly in the inversion: those parameters
-    affect the magnitude of ``damage(f)`` and of K in equal proportion,
-    leaving the inverted PSD unchanged. This invariance is verified by
+    ----------------------------------
+    When ``fds`` was computed with compatible settings, the absolute damage
+    scaling carried by ``p_scale``, ``ref_stress``, and ``ref_cycles``
+    cancels exactly in the inversion: those parameters affect the magnitude
+    of ``damage(f)`` and of ``K`` in equal proportion, leaving the inverted
+    PSD unchanged. This invariance is verified by
     ``test_closed_form_psd_is_invariant_to_global_damage_scaling``.
 
     Requirements
     ------------
-    - ``fds.meta["compat"]`` must exist and contain: metric, q, p_scale, sn.
-    - ``metric`` must be ``"pv"`` (unless ``strict_metric=False``).
+    - ``fds.meta["compat"]`` must exist and contain ``metric``, ``q``,
+      ``p_scale``, and ``sn``.
+    - ``metric`` must be ``"pv"`` unless ``strict_metric=False``.
     - ``test_duration_s`` must be the intended test duration, not the
       original signal duration.
 
     Parameters
     ----------
-    fds:
-        Target FDS result. Must carry ``meta["compat"]`` produced by any
+    fds : FDSResult
+        Target FDS result. It must carry ``meta["compat"]`` produced by any
         ``compute_fds_*`` function in this library.
-    test_duration_s:
-        Duration of the equivalent test T [s]. This is the denominator
-        in the DP → PSD step and directly controls the amplitude of the
-        inverted PSD.
-    strict_metric:
-        If True (default), raises ``ValidationError`` when
+    test_duration_s : float
+        Duration of the equivalent test :math:`T` in seconds. This is the
+        denominator in the DP-to-PSD step and directly controls the amplitude
+        of the inverted PSD.
+    strict_metric : bool
+        If ``True`` (default), raise ``ValidationError`` when
         ``fds.meta["compat"]["metric"] != "pv"``.
 
     Returns
     -------
     PSDResult
-        ``psd`` is the equivalent acceleration PSD on the same frequency
-        grid as ``fds.f``. ``meta["reconstruction"]`` contains the
-        round-trip log10 error for quality assessment.
+        Equivalent acceleration PSD on the same frequency grid as ``fds.f``.
+        ``meta["reconstruction"]`` contains the round-trip log10 error used
+        for quality assessment.
 
     References
     ----------
     Henderson, G. R. & Piersol, A. G. (1995). "Fatigue Damage Related
         Descriptor for Random Vibration Test Environments." Sound and
-        Vibration, October 1995, pp. 20–24. Equations 11–12.
+        Vibration, October 1995, 20-24. Equations 11-12.
     Gaberson, H. A. & Chalmers, R. H. (1969). "Modal Velocity as a
         Criterion of Shock Severity." Shock and Vibration Bulletin,
-        No. 40, Pt 2, pp. 31–49.
+        No. 40, Pt. 2, 31-49.
     Crandall, S. H. (1962). "Relationship between Stress and Velocity in
         Resonant Vibration." Journal of the Acoustical Society of America,
-        Vol. 34, No. 12, pp. 1960–1961.
+        34(12), 1960-1961.
     Crandall, S. H. & Mark, W. D. (1963). Random Vibrations in Mechanical
-        Systems. Academic Press, New York. pp. 113–117.
+        Systems. Academic Press, New York. pp. 113-117.
     """
     if not np.isfinite(test_duration_s) or float(test_duration_s) <= 0:
         raise ValidationError("test_duration_s must be finite and > 0.")

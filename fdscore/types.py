@@ -12,22 +12,29 @@ InputMotion = Literal["acc", "vel", "disp"]
 class SNParams:
     """S-N curve parameters used in Miner damage.
 
-    Conventions:
-    - slope_k: exponent k (>0)
-    - ref_stress: S_ref (user units, e.g., MPa)
-    - ref_cycles: N_ref
-    - amplitude_from_range:
-        If True, interpret rainflow `range` as 2*amplitude (amplitude = range/2).
-        Must be consistent across FDS compute and inversion assumptions.
+    Parameters
+    ----------
+    slope_k : float
+        Fatigue slope exponent :math:`k`. Must be positive.
+    ref_stress : float
+        Reference stress :math:`S_{ref}` in user units, for example MPa.
+    ref_cycles : float
+        Reference cycle count :math:`N_{ref}`.
+    amplitude_from_range : bool
+        If ``True``, interpret the rainflow range as twice the alternating
+        amplitude, so the damage-driving amplitude is ``range / 2``. This
+        convention must remain consistent across FDS computation and
+        inversion.
 
     Notes
     -----
-    Two usage modes are common:
+    Two usage modes are common.
 
-    - Physical: provide `ref_stress`, `ref_cycles`, and an application-specific `p_scale`
-      when absolute damage magnitude matters.
-    - Normalized: use :meth:`SNParams.normalized` together with `p_scale=1.0`
-      when only the relative FDS shape and the equivalent inverted PSD matter.
+    Physical workflows provide ``ref_stress``, ``ref_cycles``, and an
+    application-specific ``p_scale`` when absolute damage magnitude matters.
+
+    Normalized workflows use :meth:`normalized` together with ``p_scale=1.0``
+    when only relative FDS shape and the equivalent inverted PSD matter.
     """
     slope_k: float
     ref_stress: float = 1.0

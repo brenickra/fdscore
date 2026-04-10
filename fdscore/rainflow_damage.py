@@ -8,7 +8,28 @@ from .validate import ValidationError
 
 @njit(cache=False, fastmath=True)
 def _extract_reversals_values_numba(series: np.ndarray) -> np.ndarray:
-    """Return reversal values (including first and last) for rainflow counting."""
+    """Extract reversal values for ASTM-style rainflow counting.
+
+    The first and last points are always retained so that residual half cycles
+    can be closed consistently after the main stack-reduction pass.
+
+    Parameters
+    ----------
+    series:
+        One-dimensional response history.
+
+    Returns
+    -------
+    ndarray
+        Sequence of reversal values containing the first point, all strict
+        turning points, and the final point.
+
+    Notes
+    -----
+    Flat segments are skipped by ignoring repeated consecutive values. The
+    implementation is designed for the compact reversal representation used by
+    the Numba rainflow kernels in this module.
+    """
     n = series.size
     if n < 2:
         return np.empty(0, dtype=np.float64)
@@ -41,7 +62,50 @@ def _extract_reversals_values_numba(series: np.ndarray) -> np.ndarray:
 
 @njit(cache=False, fastmath=True)
 def _miner_damage_numba(series: np.ndarray, k: float, c: float, use_amplitude_from_range: bool) -> float:
-    """Compute Miner damage using ASTM-style rainflow on reversal points."""
+    r"""Compute Miner damage from a single history using a rainflow stack.
+
+    The algorithm first reduces the input history to reversal points and then
+    applies an ASTM E1049-style stack procedure. Closed ranges contribute full
+    cycles, while unresolved residual ranges at the end of the pass contribute
+    half cycles. Damage is accumulated under Miner's linear damage rule as
+
+    .. math::
+
+       D = \sum_j \phi_j \frac{S_j^k}{C}
+
+    where :math:`\phi_j` is ``1.0`` for a closed cycle and ``0.5`` for a half
+    cycle.
+
+    Parameters
+    ----------
+    series:
+        One-dimensional response history.
+    k:
+        S-N curve slope exponent.
+    c:
+        S-N curve intercept :math:`C`.
+    use_amplitude_from_range:
+        If ``True``, interpret the rainflow range as twice the alternating
+        amplitude and use :math:`S = range / 2`. If ``False``, use the full
+        range directly as the damage-driving load quantity.
+
+    Returns
+    -------
+    float
+        Miner damage accumulated over the full history.
+
+    Notes
+    -----
+    This kernel is intentionally low level and performs no input validation.
+    Validation is handled by the public wrappers.
+
+    References
+    ----------
+    ASTM E1049-85(2017). *Standard Practices for Cycle Counting in Fatigue
+        Analysis*.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." *Journal of Applied
+        Mechanics*, 12(3), A159-A164.
+    """
     rev = _extract_reversals_values_numba(series)
     n_rev = rev.size
     if n_rev < 2:
@@ -107,9 +171,40 @@ def miner_damage_from_signal(
     c: float,
     amplitude_from_range: bool = True,
 ) -> float:
-    """Public wrapper for Miner damage on a single 1D signal.
+    r"""Compute Miner damage for a single response history.
 
-    This wrapper validates shape and finiteness before calling the Numba kernel.
+    This is the public, validated entry point for the ASTM-style rainflow and
+    Miner's-rule implementation used by the library.
+
+    Parameters
+    ----------
+    signal : numpy.ndarray
+        One-dimensional response history.
+    k : float
+        S-N curve slope exponent.
+    c : float
+        S-N curve intercept :math:`C`.
+    amplitude_from_range : bool
+        If ``True``, each rainflow range is converted to alternating amplitude
+        by dividing by two before applying the S-N relationship. If ``False``,
+        the full range is used directly.
+
+    Returns
+    -------
+    float
+        Total Miner damage for the history.
+
+    Notes
+    -----
+    This wrapper validates dimensionality, finiteness, and positivity of the
+    fatigue parameters before delegating to the Numba kernel.
+
+    References
+    ----------
+    ASTM E1049-85(2017). Standard Practices for Cycle Counting in Fatigue
+        Analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
     """
     s = np.asarray(signal, dtype=np.float64)
     if s.ndim != 1:
@@ -133,9 +228,42 @@ def miner_damage_from_matrix(
     c: float,
     amplitude_from_range: bool = True,
 ) -> np.ndarray:
-    """Vectorized Miner damage for a matrix of signals with shape `(n_signals, n_samples)`.
+    r"""Compute Miner damage for a batch of response histories.
 
-    This wrapper validates dimensionality and finiteness before calling the Numba kernel.
+    Each row of ``signals`` is interpreted as an independent response history,
+    and damage is accumulated row by row using the same ASTM-style rainflow and
+    Miner's-rule logic as :func:`miner_damage_from_signal`.
+
+    Parameters
+    ----------
+    signals : numpy.ndarray
+        Two-dimensional array with shape ``(n_signals, n_samples)``.
+    k : float
+        S-N curve slope exponent.
+    c : float
+        S-N curve intercept :math:`C`.
+    amplitude_from_range : bool
+        If ``True``, convert each rainflow range to alternating amplitude by
+        dividing by two before evaluating damage. If ``False``, use the full
+        range directly.
+
+    Returns
+    -------
+    numpy.ndarray
+        One-dimensional array of Miner damage values with length
+        ``n_signals``.
+
+    Notes
+    -----
+    This wrapper performs shape and finiteness validation and then dispatches
+    the row-wise computation to a parallel Numba kernel.
+
+    References
+    ----------
+    ASTM E1049-85(2017). Standard Practices for Cycle Counting in Fatigue
+        Analysis.
+    Miner, M. A. (1945). "Cumulative Damage in Fatigue." Journal of Applied
+        Mechanics, 12(3), A159-A164.
     """
     m = np.asarray(signals, dtype=np.float64)
     if m.ndim != 2:

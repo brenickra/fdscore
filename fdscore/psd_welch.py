@@ -13,20 +13,31 @@ def compute_psd_welch(
     fs: float,
     psd: PSDParams,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Compute one-sided PSD using Welch (scipy.signal.welch).
+    """Compute a one-sided PSD using Welch's method.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional input time history.
+    fs : float
+        Sampling rate in Hz.
+    psd : PSDParams
+        PSD-estimation settings. The current implementation supports only
+        ``method="welch"``.
 
     Notes
     -----
-    - This helper is IO-free and purely numerical.
-    - `PSDParams` currently supports only `method="welch"`.
-    - Tiny negative PSD values from numerical noise are clamped to zero.
-      Materially negative values raise `ValidationError`.
+    This helper is IO-free and purely numerical.
+
+    Tiny negative PSD values arising from numerical noise are clamped to zero.
+    Materially negative values raise ``ValidationError``.
 
     Returns
     -------
-    (f, Pxx)
-      f   : 1D array of frequencies [Hz]
-      Pxx : 1D array of PSD values (units^2/Hz)
+    f_hz : numpy.ndarray
+        One-dimensional frequency grid in Hz.
+    psd_values : numpy.ndarray
+        One-dimensional PSD values in units squared per hertz.
     """
     if psd.method != "welch":
         raise ValidationError("PSDParams.method must be 'welch'.")

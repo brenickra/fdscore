@@ -129,22 +129,80 @@ def compute_psd_metrics(
     acc_to_m_s2: float | None = None,
     bands_hz: Sequence[tuple[float, float]] = DEFAULT_BANDS_HZ,
 ) -> PSDMetricsResult:
-    """Compute summary metrics from an acceleration PSD.
+    r"""Compute scalar summary metrics from an acceleration PSD.
+
+    The routine derives RMS, Gaussian peak estimates, velocity and
+    displacement metrics, and band-limited RMS values from a one-sided
+    acceleration PSD.
 
     Parameters
     ----------
-    psd:
-        Either a `PSDResult` or a 1D PSD array.
-    f_hz:
-        Required when `psd` is a raw array.
-    duration_s:
-        Duration for Gaussian peak estimation. If `None`, peak-related fields are `nan`.
-    acc_unit:
-        Acceleration unit of PSD values (`'g'` or `'m/s2'`).
-    acc_to_m_s2:
-        Explicit conversion factor from PSD acceleration unit to m/s^2. Overrides `acc_unit`.
-    bands_hz:
-        Frequency bands for band-limited RMS in g.
+    psd : PSDResult or numpy.ndarray
+        Either a ``PSDResult`` or a one-dimensional PSD array.
+    f_hz : numpy.ndarray or None
+        Frequency vector in Hz when ``psd`` is passed as a raw array. Must be
+        omitted when ``psd`` is a ``PSDResult``.
+    duration_s : float or None
+        Exposure duration used for Gaussian peak estimation. If ``None``,
+        peak-related outputs are returned as ``nan``.
+    acc_unit : str or None
+        Acceleration unit of the PSD values. Supported values are ``"g"`` and
+        ``"m/s2"``.
+    acc_to_m_s2 : float or None
+        Explicit conversion factor from the PSD acceleration unit to
+        :math:`m/s^2`. If provided, overrides ``acc_unit``.
+    bands_hz : collections.abc.Sequence
+        Sequence of ``(f_lo, f_hi)`` frequency-band pairs used to compute
+        band-limited RMS acceleration in ``g``.
+
+    Returns
+    -------
+    PSDMetricsResult
+        Structured set of scalar metrics including acceleration RMS and peak,
+        zero-upcrossing rate, effective cycles, velocity metrics, displacement
+        metrics, and per-band RMS values.
+
+    Notes
+    -----
+    RMS values are obtained by integrating the one-sided PSD. Velocity and
+    displacement PSDs are derived from acceleration through division by
+    :math:`\omega^2` and :math:`\omega^4`, respectively, for nonzero angular
+    frequency.
+
+    When ``duration_s`` is provided, the peak factor is estimated with a
+    Gaussian extreme-value approximation of Davenport form:
+
+    .. math::
+
+       \nu_0 = \frac{1}{2 \pi} \sqrt{\frac{m_2}{m_0}}
+
+    .. math::
+
+       n_{eff} = \nu_0 T
+
+    .. math::
+
+       u = \sqrt{2 \ln(n_{eff})}
+
+    .. math::
+
+       peak\_factor \approx u + \frac{\gamma_E}{u}
+
+    where :math:`m_0` and :math:`m_2` are spectral moments and
+    :math:`\gamma_E` is the Euler-Mascheroni constant. The implementation
+    floors :math:`n_{eff}` at :math:`e` to avoid a singular or negative
+    argument in the logarithm for very short exposures or very low
+    zero-upcrossing rates.
+
+    These peak estimates assume a stationary Gaussian response process. They
+    should be interpreted cautiously for strongly non-stationary environments,
+    deterministic transients, or markedly non-Gaussian signals.
+
+    References
+    ----------
+    Davenport, A. G. (1964). "Note on the Distribution of the Largest Value of
+        a Random Function with Application to Gust Loading." *Proceedings of
+        the Institution of Civil Engineers*, 28(2), 187-196.
     """
     if isinstance(psd, PSDResult):
         if f_hz is not None:
