@@ -1,321 +1,132 @@
 # fdscore
 
-`fdscore` is a Python library for **Fatigue Damage Spectrum (FDS)** computation and **FDS-to-PSD inversion**.
-It provides time-domain and spectral workflows for vibration fatigue analysis, with reusable numerical
-building blocks for engineering applications.
+**Numerical Python library for Fatigue Damage Spectrum (FDS) computation and
+FDS-to-PSD inversion.**
+
+[![PyPI version](https://img.shields.io/pypi/v/fdscore.svg)](https://pypi.org/project/fdscore/)
+[![Python versions](https://img.shields.io/pypi/pyversions/fdscore.svg)](https://pypi.org/project/fdscore/)
+[![Documentation](https://readthedocs.org/projects/fdscore/badge/?version=latest)](https://fdscore.readthedocs.io/en/latest/)
+[![CI](https://github.com/brenickra/fdscore/actions/workflows/ci.yml/badge.svg)](https://github.com/brenickra/fdscore/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+`fdscore` provides time-domain, spectral, deterministic, and shock-oriented
+workflows for vibration fatigue analysis. The library combines FDS
+computation, equivalent PSD inversion, reusable transfer plans, PSD summary
+metrics, and explicit public result models intended for engineering use.
+
+## Documentation
+
+- User documentation: https://fdscore.readthedocs.io/en/latest/
+- API reference: https://fdscore.readthedocs.io/en/latest/api.html
+- Theory: https://fdscore.readthedocs.io/en/latest/theory.html
+- Core concepts: https://fdscore.readthedocs.io/en/latest/concepts.html
+- Public contracts: [CONTRACTS.md](CONTRACTS.md)
 
 ## Main capabilities
 
-- Time-domain FDS using FFT-domain SDOF response reconstruction and Numba-accelerated rainflow/Miner damage
-- Spectral FDS using Dirlik through `FLife`
+- Time-domain FDS using FFT-domain SDOF response reconstruction with
+  rainflow/Miner damage accumulation
+- Spectral FDS using Dirlik through the optional `FLife` dependency
 - Closed-form FDS-to-PSD inversion for pseudo-velocity (`pv`)
-- Iterative PSD inversion with spectral and time-domain predictors
-- Reusable transfer plans for repeated FDS evaluations
-- PSD summary metrics including RMS, Gaussian peak estimates, and velocity/displacement metrics
-- Deterministic sine and dwell-profile FDS workflows
-- Deterministic ERS workflows and mission-level ERS envelope composition
-- Dedicated time-domain shock workflows for SRS, PVSS, event detection, rolling spectra, half-sine fitting, and shock-specific envelopes
-- Normalized (`k`-only) and physical (`S-N + p_scale`) workflow support
+- Iterative inversion with spectral and time-domain predictors
+- Deterministic sine, dwell-profile, and dwell-discretized sweep workflows
+- Generic ERS plus dedicated shock workflows for SRS, PVSS, event detection,
+  rolling spectra, and half-sine reduction
+- PSD estimation, Gaussian time synthesis, and PSD summary metrics
+- Normalized and physical fatigue parameter workflows with explicit
+  compatibility metadata
 
 ## Installation
 
-Install in editable mode during development:
+Install the core package from PyPI:
 
 ```bash
-pip install -e .
+pip install fdscore
 ```
 
-To enable spectral FDS and spectral iterative inversion:
+Enable the spectral workflows as well:
 
 ```bash
-pip install -e .[spectral]
+pip install "fdscore[spectral]"
+```
+
+For development:
+
+```bash
+pip install -e ".[dev]"
 ```
 
 ## Quick start
 
 ```python
-from fdscore import SNParams, SDOFParams, compute_fds_time, invert_fds_closed_form
+import numpy as np
 
-sn = SNParams(slope_k=3.0, amplitude_from_range=True)
-sdof = SDOFParams(q=10.0, fmin=1.0, fmax=400.0, df=1.0, metric="pv")
+from fdscore import (
+    SNParams,
+    SDOFParams,
+    compute_fds_time,
+    invert_fds_closed_form,
+    synthesize_time_from_psd,
+)
 
-fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="linear", batch_size=64)
-psd = invert_fds_closed_form(fds, test_duration_s=24 * 3600.0)
+fs = 1000.0
+duration_s = 12.0
+
+f_psd = np.array([1.0, 20.0, 80.0, 150.0, 300.0])
+psd = np.array([1.0e-4, 2.0e-3, 5.0e-3, 2.0e-3, 5.0e-4])
+
+x = synthesize_time_from_psd(
+    f_psd_hz=f_psd,
+    psd=psd,
+    fs=fs,
+    duration_s=duration_s,
+    seed=7,
+)
+
+sn = SNParams.normalized(slope_k=4.0)
+sdof = SDOFParams(q=10.0, metric="pv", fmin=10.0, fmax=200.0, df=10.0)
+
+fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="mean")
+psd_eq = invert_fds_closed_form(fds, test_duration_s=duration_s)
+
+print(fds.damage[:3])
+print(psd_eq.psd[:3])
 ```
 
-## Normalized and physical workflows
+`fds.damage` is the predicted Miner damage spectrum on the oscillator bank
+defined by `sdof`. `psd_eq.psd` is the equivalent one-sided acceleration PSD
+that reproduces that damage target under the closed-form inversion
+assumptions.
 
-`fdscore` supports two equally valid ways of defining fatigue parameters:
+## Workflow overview
 
-- Normalized workflow:
-  - use `SNParams(slope_k=...)` or `SNParams.normalized(slope_k=...)`
-  - omit `p_scale` or use `p_scale=1.0`
-  - recommended when the main goal is FDS shape analysis and FDS-to-PSD inversion
+`fdscore` is organized around a small set of public parameter and result
+models:
 
-- Physical workflow:
-  - provide `SNParams(slope_k, ref_stress, ref_cycles, ...)`
-  - provide an application-specific `p_scale` explicitly
-  - use when absolute Miner damage magnitude matters
+- `SNParams`, `SDOFParams`, `PSDParams`, and `IterativeInversionParams`
+- `FDSResult`, `ERSResult`, `PSDResult`, `PSDMetricsResult`, `FDSTimePlan`
+- `ShockSpectrumPair`, `ShockEventSet`, `RollingERSResult`, and
+  `HalfSinePulse`
 
-For fixed `slope_k`, the combination of `ref_stress`, `ref_cycles`, and `p_scale`
-acts as a global damage scaling factor. It changes the magnitude of the FDS, but not
-its shape. In compatible inversion workflows, that global factor cancels when solving
-for the equivalent PSD.
-
-If `p_scale` is omitted, `fdscore` assumes `p_scale=1.0` only when the S-N definition
-is normalized (`ref_stress=1`, `ref_cycles=1`). If non-unit S-N references are used,
-`p_scale` must be provided explicitly.
-
-Example of a physical setup:
-
-```python
-sn = SNParams(slope_k=6.0, ref_stress=120.0, ref_cycles=1e6)
-p_scale_physical = 300.0  # application-specific response -> fatigue scaling
-fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, p_scale=p_scale_physical, detrend="linear")
-```
-
-For repeated analyses with the same sampling setup:
-
-```python
-from fdscore import prepare_fds_time_plan
-
-plan = prepare_fds_time_plan(fs=fs, n_samples=len(x), sdof=sdof)
-fds_x = compute_fds_time(x, fs, sn=sn, sdof=sdof, plan=plan)
-fds_y = compute_fds_time(y, fs, sn=sn, sdof=sdof, plan=plan)
-fds_z = compute_fds_time(z, fs, sn=sn, sdof=sdof, plan=plan)
-```
-
-PSD summary metrics are available through `compute_psd_metrics(...)`:
-
-```python
-from fdscore import compute_psd_metrics
-
-metrics = compute_psd_metrics(psd, duration_s=3600.0, acc_unit="g")
-print(metrics.rms_acc_g, metrics.peak_acc_g, metrics.band_rms_g)
-```
-
-`compute_psd_metrics(...)` requires an explicit acceleration unit through `acc_unit` or `acc_to_m_s2`.
-Band RMS values remain available in `band_rms_g`, while `meta["band_coverage"]` reports whether each requested band was fully covered by the input PSD grid. `meta["peak_statistics"]` exposes when Gaussian effective-cycle floors were applied.
-
-## Iterative inversion parameter usage
-
-Both iterative inversion engines share the same `IterativeInversionParams` dataclass, but
-they do not consume exactly the same subset of fields.
-
-- `invert_fds_iterative_spectral(...)` uses the full regularization set, including tail caps
-  and optional post-smooth/post-refine stages.
-- `invert_fds_iterative_time(...)` uses the common update, smoothing, and prior controls, but
-  currently ignores tail caps and post-processing/refine fields.
-- Its predictor currently evaluates synthesized histories with
-  `synthesize_time_from_psd(..., remove_mean=True)` followed by
-  `compute_fds_time(..., detrend="none", batch_size=64)`.
-- `PSDResult.meta["diagnostics"]["predictor_config"]` exposes this internal evaluation policy at runtime.
-
-Each inversion result exposes `meta["param_usage"]` so callers can inspect which fields were
-used and which were ignored by the selected engine.
+The public API is documented in the RTD site and exposed from the top-level
+`fdscore` namespace. Internal helper modules are intentionally kept out of the
+public reference.
 
 ## Examples
 
-Minimal runnable workflows are available under [examples/README.md](examples/README.md):
+Runnable examples are available in [examples/README.md](examples/README.md):
 
 - `python -m examples.minimal_fds_time`
 - `python -m examples.minimal_fds_spectral`
 - `python -m examples.minimal_inversion_and_metrics`
 
-## Deterministic harmonic workflows
+## Scope
 
-Deterministic sine and dwell helpers extend `fdscore` without changing the existing FDS/PSD APIs.
+Use the README as the entry point. Use the RTD site for the complete user
+guide, API reference, theory notes, assumptions, compatibility rules, and
+examples. Use [CONTRACTS.md](CONTRACTS.md) for the stable engineering contract
+behind the public API.
 
-For a single sine:
+## License
 
-```python
-from fdscore import SDOFParams, SNParams, compute_ers_sine, compute_fds_sine
-
-sdof_ers = SDOFParams(q=10.0, fmin=10.0, fmax=200.0, df=5.0, metric="acc")
-sdof_fds = SDOFParams(q=10.0, fmin=10.0, fmax=200.0, df=5.0, metric="pv")
-sn = SNParams.normalized(slope_k=6.0)
-
-ers = compute_ers_sine(freq_hz=80.0, amp=2.0, sdof=sdof_ers, input_motion="acc")
-fds = compute_fds_sine(freq_hz=80.0, amp=2.0, duration_s=300.0, sn=sn, sdof=sdof_fds)
-``` 
-
-For multiple dwells:
-
-```python
-from fdscore import SineDwellSegment, compute_ers_dwell_profile, compute_fds_dwell_profile
-
-segments = [
-    SineDwellSegment(freq_hz=40.0, amp=1.5, duration_s=600.0),
-    SineDwellSegment(freq_hz=80.0, amp=2.0, duration_s=300.0),
-]
-
-ers_mission = compute_ers_dwell_profile(segments, sdof=sdof_ers)
-fds_mission = compute_fds_dwell_profile(segments, sn=sn, sdof=sdof_fds)
-``` 
-
-Mission composition rules are intentionally different:
-
-- `FDS` composes by damage summation.
-- `ERS` composes by pointwise envelope, not summation.
-
-Approximate sine sweeps are also supported by discretizing the sweep path into
-many short dwell segments:
-
-```python
-from fdscore import compute_ers_sine_sweep, compute_fds_sine_sweep
-
-ers_sweep = compute_ers_sine_sweep(
-    f_start_hz=20.0,
-    f_stop_hz=200.0,
-    amp=2.0,
-    duration_s=180.0,
-    sdof=sdof_ers,
-    spacing="log",
-    n_steps=200,
-)
-
-fds_sweep = compute_fds_sine_sweep(
-    f_start_hz=20.0,
-    f_stop_hz=200.0,
-    amp=2.0,
-    duration_s=180.0,
-    sn=sn,
-    sdof=sdof_fds,
-    spacing="log",
-    n_steps=200,
-)
-```
-
-This is intentionally documented as a dwell-discretized approximation, not as a
-closed-form sweep derivation.
-
-Measured time histories are supported through `compute_ers_time(...)`:
-
-```python
-from fdscore import compute_ers_time
-
-ers_time = compute_ers_time(x, fs, sdof=sdof_ers, detrend="linear", batch_size=64)
-```
-
-If the metric and sampling setup match, `compute_ers_time(...)` can also reuse a
-compatible `FDSTimePlan`, since the plan stores only the FFT-domain transfer matrix.
-
-Shock-oriented time histories are supported through dedicated wrappers built on a
-recursive IIR SDOF engine:
-
-```python
-from fdscore import compute_srs_time, compute_pvss_time
-
-sdof_srs = SDOFParams(q=10.0, fmin=5.0, fmax=2000.0, df=5.0, metric="acc")
-sdof_pvss = SDOFParams(q=10.0, fmin=5.0, fmax=2000.0, df=5.0, metric="pv")
-
-srs = compute_srs_time(x, fs, sdof=sdof_srs, detrend="median", peak_mode="abs")
-pvss = compute_pvss_time(x, fs, sdof=sdof_pvss, detrend="median", peak_mode="both")
-```
-
-Notes for the shock wrappers:
-
-- `compute_srs_time(...)` requires `sdof.metric="acc"`.
-- `compute_pvss_time(...)` requires `sdof.metric="pv"`.
-- They support `peak_mode="abs"|"pos"|"neg"|"both"`.
-- `peak_mode="both"` returns `ShockSpectrumPair` with explicit `neg` and `pos` spectra.
-- They do not reuse `FDSTimePlan`; they use a separate recursive backend intended for transient shock analysis.
-- For short extracted shock windows, `detrend="median"` is often the most robust starting point.
-
-Detected-event workflows are available for measured shock histories:
-
-```python
-from fdscore import detect_shock_events, compute_rolling_srs_time
-
-events = detect_shock_events(
-    x,
-    fs,
-    detrend="median",
-    threshold_reference="rms",
-    threshold_multiplier=5.0,
-    min_separation_s=0.050,
-    window_s=0.040,
-)
-
-rolling_srs = compute_rolling_srs_time(
-    x,
-    fs,
-    sdof=sdof_srs,
-    events=events,
-    detrend="none",
-    peak_mode="abs",
-)
-```
-
-This rolling API is currently event-window based: each detected event window produces one
-row in the returned `RollingERSResult.response` matrix.
-
-Mission-style shock composition is available through explicit envelope helpers:
-
-```python
-from fdscore import envelope_srs, envelope_pvss
-
-srs_env = envelope_srs([srs_run_1, srs_run_2, srs_run_3])
-pvss_env = envelope_pvss([pvss_run_1, pvss_run_2, pvss_run_3])
-```
-
-For `peak_mode="both"`, these helpers envelope the `neg` and `pos` sides separately and return
-another `ShockSpectrumPair`.
-
-PVSS can also be reduced to an equivalent half-sine pulse for requirement simplification or
-bench setup studies:
-
-```python
-from fdscore import compute_pvss_time, fit_half_sine_to_pvss, synthesize_half_sine_pulse
-
-pvss_abs = compute_pvss_time(x, fs, sdof=sdof_pvss, detrend="median", peak_mode="abs")
-pulse = fit_half_sine_to_pvss(pvss_abs)
-x_half_sine = synthesize_half_sine_pulse(pulse, fs=20000.0, total_duration_s=0.100, t_start_s=0.010)
-```
-
-This half-sine fit is an enveloping approximation derived from the PVSS. It is not intended to
-recover an original measured pulse exactly.
-## Compatibility semantics
-
-`fdscore` uses compatibility in two distinct ways:
-
-- FDS algebra operations such as `sum_fds(...)` require matching damage semantics and the same oscillator frequency grid. Composed results retain compatible metadata and record structured provenance for scaling/summation inputs.
-- Inversion operations require matching damage semantics stored in `meta["compat"]`, but do not require the candidate PSD grid to match the target FDS grid.
-
-This distinction is intentional: FDS addition operates directly on spectra defined on the same oscillator grid, while inversion solves for a separate PSD representation.
-
-## Method assumptions and limits
-
-- `synthesize_time_from_psd(...)` generates stationary Gaussian random-phase realizations.
-  It is useful for iterative predictors, controlled studies, and synthetic examples, but
-  it is not a general substitute for arbitrary measured non-stationary vibration signals.
-- Spectral FDS uses Dirlik through `FLife`. It is a spectral fatigue approximation and is
-  not numerically identical to time-domain rainflow counting on a realized signal.
-- `compute_fds_spectral_time(...)` first estimates a PSD with Welch and then applies Dirlik.
-  Its result therefore depends both on the spectral model and on the PSD estimation settings.
-- Spectral PSD inputs are expected to be non-negative. Tiny negative values consistent
-  with numerical noise are clamped to zero; materially negative PSD values raise `ValidationError`.
-- Closed-form inversion is implemented only for `metric="pv"`. For other metrics, use the
-  iterative inversion engines.
-- `FDSTimePlan` trades memory for speed by storing the full complex transfer matrix `H`.
-  Memory scales roughly as `len(f0) * (n_fft_bins) * 16 bytes` for `complex128`. For example,
-  400 oscillators and a 4 s signal at 1 kHz correspond to about 12 MB for the plan matrix alone.
-- `compute_ers_time(...)` remains the generic FFT-domain ERS engine.
-- `compute_srs_time(...)` and `compute_pvss_time(...)` use a dedicated recursive shock backend.
-  This keeps transient-shock behavior separate from the generic ERS path and avoids forcing shock
-  assumptions onto the rest of the library.
-
-## API reference
-
-Core public contracts and the main data structures used in release workflows are
-documented in `CONTRACTS.md`.
-
-`CONTRACTS.md` is intentionally not a generated export-by-export reference for
-every helper exposed by `fdscore.__all__`.
-
-
-
-
-
-
-
+MIT License. See [LICENSE](LICENSE) for details.
