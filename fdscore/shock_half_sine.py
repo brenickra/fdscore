@@ -1,3 +1,10 @@
+"""Half-sine pulse fitting and synthesis from PVSS data.
+
+This module provides utilities for deriving a simple half-sine
+acceleration pulse that envelopes a one-sided pseudo-velocity shock
+spectrum and for synthesizing that pulse back into the time domain.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -25,12 +32,33 @@ def fit_half_sine_to_pvss(
 ) -> HalfSinePulse:
     """Fit a half-sine acceleration pulse whose PVSS envelopes the input PVSS.
 
+    Parameters
+    ----------
+    pvss : ERSResult
+        One-sided pseudo-velocity shock spectrum compatible with the
+        library's PVSS contract.
+    polarity : {"pos", "neg"}, optional
+        Polarity assigned to the fitted half-sine pulse.
+
+    Returns
+    -------
+    object
+        Fitted pulse returned as a ``HalfSinePulse``, expressed in
+        acceleration amplitude and pulse duration.
+
     Notes
     -----
-    - `pvss` must be a one-sided 1D `ERSResult` produced by `compute_pvss_time(...)`
-      or an otherwise compatible PVSS workflow.
-    - The returned amplitude is in the same acceleration units used to generate
-      the input time history that produced `pvss`.
+    ``pvss`` must be a one-sided ``ERSResult`` produced by
+    ``compute_pvss_time(...)`` or an otherwise compatible PVSS workflow.
+
+    The fitted amplitude is expressed in the same acceleration units that
+    were used to generate the time history behind ``pvss``. The duration
+    is inferred from the pair of envelope statistics ``max(PVSS)`` and
+    ``max(f * PVSS)`` together with the damping-dependent peak factor
+    used by the half-sine model.
+
+    The method is intended as a compact pulse characterization rather
+    than an exact waveform reconstruction of the original transient.
     """
     if polarity not in ("pos", "neg"):
         raise ValidationError("polarity must be 'pos' or 'neg'.")
@@ -95,7 +123,35 @@ def synthesize_half_sine_pulse(
     total_duration_s: float | None = None,
     t_start_s: float = 0.0,
 ) -> np.ndarray:
-    """Synthesize a half-sine acceleration pulse as a 1D time history."""
+    """Synthesize a half-sine acceleration pulse as a one-dimensional signal.
+
+    Parameters
+    ----------
+    pulse : object
+        Half-sine pulse definition to synthesize. The input must be a
+        ``HalfSinePulse`` instance.
+    fs : float
+        Sampling rate in Hz.
+    total_duration_s : float or None, optional
+        Total output duration in seconds. When omitted, the signal is long
+        enough to contain the pulse plus one additional pulse duration of
+        trailing zeros.
+    t_start_s : float, optional
+        Pulse start time in seconds within the synthesized output.
+
+    Returns
+    -------
+    numpy.ndarray
+        One-dimensional acceleration time history containing the
+        half-sine pulse.
+
+    Notes
+    -----
+    The waveform is zero outside the interval
+    ``[t_start_s, t_start_s + pulse.duration_s)``. Within that interval,
+    the pulse follows a half-sine profile with the signed amplitude
+    implied by ``pulse.polarity``.
+    """
     if not isinstance(pulse, HalfSinePulse):
         raise ValidationError("pulse must be a HalfSinePulse.")
     if pulse.polarity not in ("pos", "neg"):

@@ -1,3 +1,11 @@
+"""Rolling shock-spectrum evaluation on detected event windows.
+
+This module computes SRS or PVSS values for each previously detected
+shock-event window and stacks the results into a time-indexed matrix.
+The returned object is useful for comparing transient severity across a
+sequence of discrete shocks.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -119,11 +127,41 @@ def compute_rolling_srs_time(
 ) -> RollingERSResult:
     """Compute SRS on each detected shock-event window.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional source signal containing the detected events.
+    fs : float
+        Sampling rate in Hz.
+    sdof : SDOFParams
+        Oscillator-grid definition. For this wrapper,
+        ``sdof.metric`` must be ``"acc"``.
+    events : object
+        Detected event windows that define the rolling segments. The
+        input must be a ``ShockEventSet`` instance.
+    detrend : {"linear", "mean", "median", "none"}, optional
+        Preprocessing mode applied independently to each event window.
+    strict_nyquist : bool, optional
+        Whether oscillator frequencies at or above Nyquist should raise
+        an error instead of being clipped.
+    peak_mode : {"abs", "pos", "neg"}, optional
+        Peak convention used for each event-local spectrum.
+
+    Returns
+    -------
+    object
+        Rolling result returned as a ``RollingERSResult``. Each row
+        corresponds to one detected event and each column corresponds to
+        one oscillator frequency.
+
     Notes
     -----
-    - Rolling shock spectra are currently event-window based.
-    - `peak_mode` is limited to `abs`, `pos`, and `neg` in this API.
-    - `sdof.metric` must be `"acc"`.
+    Rolling shock spectra are currently event-window based rather than
+    fixed-hop or sliding-window based. The time coordinate stored in the
+    result corresponds to the detected peak time of each event.
+
+    If no events are present, the function still returns a valid empty
+    matrix with the validated oscillator frequency grid.
     """
     return _rolling_from_events(
         x=x,
@@ -151,11 +189,41 @@ def compute_rolling_pvss_time(
 ) -> RollingERSResult:
     """Compute PVSS on each detected shock-event window.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional source signal containing the detected events.
+    fs : float
+        Sampling rate in Hz.
+    sdof : SDOFParams
+        Oscillator-grid definition. For this wrapper,
+        ``sdof.metric`` must be ``"pv"``.
+    events : object
+        Detected event windows that define the rolling segments. The
+        input must be a ``ShockEventSet`` instance.
+    detrend : {"linear", "mean", "median", "none"}, optional
+        Preprocessing mode applied independently to each event window.
+    strict_nyquist : bool, optional
+        Whether oscillator frequencies at or above Nyquist should raise
+        an error instead of being clipped.
+    peak_mode : {"abs", "pos", "neg"}, optional
+        Peak convention used for each event-local spectrum.
+
+    Returns
+    -------
+    object
+        Rolling result returned as a ``RollingERSResult``. Each row
+        corresponds to one detected event and each column corresponds to
+        one oscillator frequency.
+
     Notes
     -----
-    - Rolling shock spectra are currently event-window based.
-    - `peak_mode` is limited to `abs`, `pos`, and `neg` in this API.
-    - `sdof.metric` must be `"pv"`.
+    Rolling shock spectra are currently event-window based rather than
+    fixed-hop or sliding-window based. The time coordinate stored in the
+    result corresponds to the detected peak time of each event.
+
+    If no events are present, the function still returns a valid empty
+    matrix with the validated oscillator frequency grid.
     """
     return _rolling_from_events(
         x=x,

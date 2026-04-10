@@ -1,3 +1,11 @@
+"""Event-oriented shock detection for transient time histories.
+
+This module locates discrete shock events in a one-dimensional signal and
+returns window metadata suitable for event-wise SRS or PVSS analysis.
+Detection is threshold based and is performed on a preprocessed signal
+using ``scipy.signal.find_peaks``.
+"""
+
 from __future__ import annotations
 
 import math
@@ -82,12 +90,47 @@ def detect_shock_events(
 ) -> ShockEventSet:
     """Detect discrete shock events in a 1D acceleration time history.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional acceleration time history.
+    fs : float
+        Sampling rate in Hz.
+    detrend : {"linear", "mean", "median", "none"}, optional
+        Preprocessing mode applied before peak detection.
+    polarity : {"abs", "pos", "neg"}, optional
+        Whether detection is performed on absolute, positive-only, or
+        negative-only peaks.
+    threshold_reference : {"rms", "std", "peak"}, optional
+        Reference statistic used when ``threshold_value`` is not provided.
+    threshold_multiplier : float, optional
+        Positive multiplier applied to the selected threshold reference.
+    threshold_value : float or None, optional
+        Explicit absolute threshold. When provided, it overrides the
+        reference-based threshold calculation.
+    min_separation_s : float, optional
+        Minimum temporal separation enforced between detected peaks.
+    window_s : float or None, optional
+        Total extraction-window duration centered on each detected peak.
+        When omitted, the detector derives the window from
+        ``min_separation_s``.
+
+    Returns
+    -------
+    object
+        Detected events returned as a ``ShockEventSet``, together with
+        sampling metadata and detector settings.
+
     Notes
     -----
-    - This is an axis-first detector for event-oriented shock workflows.
-    - Detection is performed on a preprocessed 1D signal using `scipy.signal.find_peaks`.
-    - `polarity` controls whether detection is based on absolute peaks, positive peaks,
-      or negative peaks.
+    This is an axis-first detector intended for event-oriented shock
+    workflows. It is most useful when a long recording contains multiple
+    isolated transients and each transient should be analyzed with a
+    dedicated local spectrum.
+
+    The stored event windows are index based. They can therefore be used
+    directly to slice the original signal without recomputing detection
+    state.
     """
     x = _validate_event_detector_inputs(
         x=x,

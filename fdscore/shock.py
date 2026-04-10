@@ -1,3 +1,12 @@
+"""Shock-spectrum wrappers built on the recursive IIR engine.
+
+This module exposes the public time-domain APIs for computing shock
+response spectra (SRS) and pseudo-velocity shock spectra (PVSS) from
+base-acceleration signals. It validates user inputs, applies simple
+signal preprocessing, and packages one-sided or two-sided outputs with
+compatibility metadata.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -93,11 +102,40 @@ def compute_srs_time(
 ) -> ERSResult | ShockSpectrumPair:
     """Compute a shock response spectrum (SRS) from a base-acceleration time history.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional base-acceleration time history.
+    fs : float
+        Sampling rate in Hz.
+    sdof : SDOFParams
+        Oscillator-grid definition. For this wrapper,
+        ``sdof.metric`` must be ``"acc"``.
+    detrend : {"linear", "mean", "median", "none"}, optional
+        Detrending mode applied before the shock-spectrum calculation.
+    strict_nyquist : bool, optional
+        Whether oscillator frequencies at or above Nyquist should raise
+        an error instead of being clipped.
+    peak_mode : {"abs", "pos", "neg", "both"}, optional
+        Requested peak convention. ``"both"`` returns separate negative
+        and positive spectra.
+
+    Returns
+    -------
+    object
+        One-sided results are returned as ``ERSResult``. When
+        ``peak_mode="both"``, the function returns a
+        ``ShockSpectrumPair`` containing the negative and positive sides.
+
     Notes
     -----
-    - This wrapper uses the dedicated recursive shock engine.
-    - `sdof.metric` must be ``"acc"``.
-    - Public sidedness supports ``abs``, ``pos``, ``neg``, and ``both``.
+    This wrapper uses the dedicated recursive shock engine implemented in
+    :mod:`fdscore._shock_iir`.
+
+    The returned spectrum is tagged with
+    ``ers_kind="shock_response_spectrum"`` so that downstream envelope
+    and compatibility operations can distinguish it from generic ERS or
+    PVSS results.
     """
     x, f0, zeta, fs = _validate_shock_wrapper_inputs(
         x=x,
@@ -187,11 +225,40 @@ def compute_pvss_time(
 ) -> ERSResult | ShockSpectrumPair:
     """Compute a pseudo-velocity shock spectrum (PVSS) from a base-acceleration time history.
 
+    Parameters
+    ----------
+    x : numpy.ndarray
+        One-dimensional base-acceleration time history.
+    fs : float
+        Sampling rate in Hz.
+    sdof : SDOFParams
+        Oscillator-grid definition. For this wrapper,
+        ``sdof.metric`` must be ``"pv"``.
+    detrend : {"linear", "mean", "median", "none"}, optional
+        Detrending mode applied before the shock-spectrum calculation.
+    strict_nyquist : bool, optional
+        Whether oscillator frequencies at or above Nyquist should raise
+        an error instead of being clipped.
+    peak_mode : {"abs", "pos", "neg", "both"}, optional
+        Requested peak convention. ``"both"`` returns separate negative
+        and positive spectra.
+
+    Returns
+    -------
+    object
+        One-sided results are returned as ``ERSResult``. When
+        ``peak_mode="both"``, the function returns a
+        ``ShockSpectrumPair`` containing the negative and positive sides.
+
     Notes
     -----
-    - This wrapper uses the dedicated recursive shock engine.
-    - `sdof.metric` must be ``"pv"``.
-    - Public sidedness supports ``abs``, ``pos``, ``neg``, and ``both``.
+    This wrapper uses the dedicated recursive shock engine implemented in
+    :mod:`fdscore._shock_iir`.
+
+    The returned spectrum is tagged with
+    ``ers_kind="pseudo_velocity_shock_spectrum"`` so that downstream
+    tooling can distinguish PVSS results from generic ERS and classical
+    acceleration-based SRS.
     """
     x, f0, zeta, fs = _validate_shock_wrapper_inputs(
         x=x,
