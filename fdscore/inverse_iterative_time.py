@@ -35,7 +35,7 @@ def invert_fds_iterative_time(
     This routine solves the inverse problem "find an acceleration PSD whose
     time-domain FDS matches ``target``" by repeatedly synthesizing time
     histories from the candidate PSD and re-evaluating
-    :func:`fdscore.fds_time.compute_fds_time`.
+    :func:`fdscore.compute_fds_time`.
 
     Algorithm
     ---------
@@ -47,8 +47,8 @@ def invert_fds_iterative_time(
 
     For each predictor call, the routine synthesizes ``n_realizations``
     random-phase time histories from :math:`P`, evaluates their FDS with
-    :func:`fdscore.fds_time.compute_fds_time`, and averages the resulting
-    damage spectra.
+    :func:`fdscore.compute_fds_time`, and averages the resulting damage
+    spectra.
 
     Oscillator-wise multiplicative gains are computed as
 

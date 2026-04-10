@@ -1,258 +1,148 @@
 # API Reference
 
-This page documents the public functions and classes exposed by `fdscore`,
-along with selected internal modules that underpin the main fatigue and
-inversion workflows. The reference is generated directly from the source-code
-docstrings.
+This page documents the stable public API exposed from the top-level
+`fdscore` namespace. Internal helper modules, compatibility plumbing,
+and implementation details are intentionally excluded from this
+reference.
 
-## `fdscore._inversion_utils`
+The structure below follows the public workflows described in
+`README.md` and `CONTRACTS.md`.
 
 ```{eval-rst}
-.. automodule:: fdscore._inversion_utils
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. currentmodule:: fdscore
 ```
 
-## `fdscore._psd_utils`
+## Configuration Models
+
+These classes define the main numerical settings and workflow inputs used
+throughout the library.
 
 ```{eval-rst}
-.. automodule:: fdscore._psd_utils
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autoclass:: SNParams
+
+.. autoclass:: SDOFParams
+
+.. autoclass:: PSDParams
+
+.. autoclass:: IterativeInversionParams
+
+.. autoclass:: SineDwellSegment
 ```
 
-## `fdscore._shock_iir`
+## Result Models
+
+These classes carry the structured outputs returned by the main fatigue,
+ERS, PSD, and shock workflows.
 
 ```{eval-rst}
-.. automodule:: fdscore._shock_iir
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autoclass:: FDSResult
+
+.. autoclass:: ERSResult
+
+.. autoclass:: PSDResult
+
+.. autoclass:: PSDMetricsResult
+
+.. autoclass:: FDSTimePlan
+
+.. autoclass:: ShockSpectrumPair
+
+.. autoclass:: ShockEvent
+
+.. autoclass:: ShockEventSet
+
+.. autoclass:: RollingERSResult
+
+.. autoclass:: HalfSinePulse
 ```
 
-## `fdscore._shock_signal`
+## Fatigue and Inversion Workflows
+
+These are the main FDS computation, algebra, and inversion entry points.
 
 ```{eval-rst}
-.. automodule:: fdscore._shock_signal
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autofunction:: compute_fds_time
+
+.. autofunction:: prepare_fds_time_plan
+
+.. autofunction:: compute_fds_spectral_psd
+
+.. autofunction:: compute_fds_spectral_time
+
+.. autofunction:: scale_fds
+
+.. autofunction:: sum_fds
+
+.. autofunction:: invert_fds_closed_form
+
+.. autofunction:: invert_fds_iterative_spectral
+
+.. autofunction:: invert_fds_iterative_time
 ```
 
-## `fdscore._time_plan`
+## PSD Analysis and Signal Synthesis
+
+These functions estimate acceleration PSDs, derive scalar PSD metrics,
+and synthesize stationary Gaussian realizations.
 
 ```{eval-rst}
-.. automodule:: fdscore._time_plan
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autofunction:: compute_psd_welch
+
+.. autofunction:: compute_psd_metrics
+
+.. autofunction:: synthesize_time_from_psd
 ```
 
-## `fdscore.deterministic`
+## Deterministic Harmonic Workflows
+
+These APIs cover single-tone, dwell-profile, and dwell-discretized sweep
+analyses.
 
 ```{eval-rst}
-.. automodule:: fdscore.deterministic
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autofunction:: compute_ers_sine
+
+.. autofunction:: compute_fds_sine
+
+.. autofunction:: compute_ers_dwell_profile
+
+.. autofunction:: compute_fds_dwell_profile
+
+.. autofunction:: compute_ers_sine_sweep
+
+.. autofunction:: compute_fds_sine_sweep
 ```
 
-## `fdscore.ers_ops`
+## ERS Workflows
+
+These functions compute and combine generic extreme-response spectra.
 
 ```{eval-rst}
-.. automodule:: fdscore.ers_ops
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autofunction:: compute_ers_time
+
+.. autofunction:: envelope_ers
 ```
 
-## `fdscore.ers_time`
+## Shock Workflows
+
+These functions cover transient shock analysis, event-based workflows,
+rolling spectra, sided envelopes, and half-sine reduction.
 
 ```{eval-rst}
-.. automodule:: fdscore.ers_time
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
+.. autofunction:: compute_srs_time
 
-## `fdscore.fds_ops`
+.. autofunction:: compute_pvss_time
 
-```{eval-rst}
-.. automodule:: fdscore.fds_ops
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
+.. autofunction:: detect_shock_events
 
-## `fdscore.fds_spectral`
+.. autofunction:: compute_rolling_srs_time
 
-```{eval-rst}
-.. automodule:: fdscore.fds_spectral
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
+.. autofunction:: compute_rolling_pvss_time
 
-## `fdscore.fds_time`
+.. autofunction:: envelope_srs
 
-```{eval-rst}
-.. automodule:: fdscore.fds_time
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
+.. autofunction:: envelope_pvss
 
-## `fdscore.grid`
+.. autofunction:: fit_half_sine_to_pvss
 
-```{eval-rst}
-.. automodule:: fdscore.grid
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.inverse_closed_form`
-
-```{eval-rst}
-.. automodule:: fdscore.inverse_closed_form
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.inverse_iterative_spectral`
-
-```{eval-rst}
-.. automodule:: fdscore.inverse_iterative_spectral
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.inverse_iterative_time`
-
-```{eval-rst}
-.. automodule:: fdscore.inverse_iterative_time
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.metrics`
-
-```{eval-rst}
-.. automodule:: fdscore.metrics
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.preprocess`
-
-```{eval-rst}
-.. automodule:: fdscore.preprocess
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.psd_welch`
-
-```{eval-rst}
-.. automodule:: fdscore.psd_welch
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.rainflow_damage`
-
-```{eval-rst}
-.. automodule:: fdscore.rainflow_damage
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.sdof_transfer`
-
-```{eval-rst}
-.. automodule:: fdscore.sdof_transfer
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.shock`
-
-```{eval-rst}
-.. automodule:: fdscore.shock
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.shock_events`
-
-```{eval-rst}
-.. automodule:: fdscore.shock_events
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.shock_half_sine`
-
-```{eval-rst}
-.. automodule:: fdscore.shock_half_sine
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.shock_ops`
-
-```{eval-rst}
-.. automodule:: fdscore.shock_ops
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.shock_rolling`
-
-```{eval-rst}
-.. automodule:: fdscore.shock_rolling
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.synth_time`
-
-```{eval-rst}
-.. automodule:: fdscore.synth_time
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.types`
-
-```{eval-rst}
-.. automodule:: fdscore.types
-   :members:
-   :undoc-members: False
-   :show-inheritance:
-```
-
-## `fdscore.validate`
-
-```{eval-rst}
-.. automodule:: fdscore.validate
-   :members:
-   :undoc-members: False
-   :show-inheritance:
+.. autofunction:: synthesize_half_sine_pulse
 ```

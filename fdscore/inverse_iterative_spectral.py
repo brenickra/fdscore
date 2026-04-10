@@ -31,7 +31,7 @@ def invert_fds_iterative_spectral(
 
     This routine solves the inverse problem "find an acceleration PSD whose
     predicted FDS matches ``target``" by repeatedly calling the spectral
-    predictor :func:`fdscore.fds_spectral.compute_fds_spectral_psd`.
+    predictor :func:`fdscore.compute_fds_spectral_psd`.
 
     Algorithm
     ---------

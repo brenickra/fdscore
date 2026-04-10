@@ -171,7 +171,7 @@ def compute_fds_spectral_time(
 
     This convenience route first estimates a one-sided acceleration PSD from
     the input time history and then delegates to
-    :func:`fdscore.fds_spectral.compute_fds_spectral_psd`.
+    :func:`fdscore.compute_fds_spectral_psd`.
 
     Parameters
     ----------

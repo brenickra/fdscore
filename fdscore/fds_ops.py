@@ -92,10 +92,9 @@ def sum_fds(fds_list: Sequence[FDSResult], weights: Optional[Sequence[float]] = 
 
     Notes
     -----
-    Compatibility is enforced through
-    :func:`fdscore.validate.assert_fds_compatible`, which verifies that
-    the spectra can be meaningfully combined without mixing damage
-    metrics, oscillator assumptions, or incompatible S-N definitions.
+    Compatibility is enforced internally before summation so that the
+    spectra can be meaningfully combined without mixing damage metrics,
+    oscillator assumptions, or incompatible S-N definitions.
     This function therefore acts as a safe superposition utility for
     spectra that already satisfy a shared engineering interpretation.
 

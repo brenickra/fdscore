@@ -42,9 +42,8 @@ def envelope_ers(results: Sequence[ERSResult]) -> ERSResult:
 
     Notes
     -----
-    Compatibility is enforced through
-    :func:`fdscore.validate.assert_ers_compatible`, so the function will
-    reject inputs that mix different response metrics, peak conventions,
+    Compatibility is enforced internally, so the function will reject
+    inputs that mix different response metrics, peak conventions,
     oscillator assumptions, or incompatible frequency grids.
 
     The returned result preserves the reference grid and stores

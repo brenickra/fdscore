@@ -35,8 +35,9 @@ class SNParams:
     Physical workflows provide ``ref_stress``, ``ref_cycles``, and an
     application-specific ``p_scale`` when absolute damage magnitude matters.
 
-    Normalized workflows use :meth:`normalized` together with ``p_scale=1.0``
-    when only relative FDS shape and the equivalent inverted PSD matter.
+    Normalized workflows use ``SNParams.normalized(...)`` together with
+    ``p_scale=1.0`` when only relative FDS shape and the equivalent
+    inverted PSD matter.
     """
     slope_k: float
     ref_stress: float = 1.0

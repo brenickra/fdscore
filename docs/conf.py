@@ -24,12 +24,7 @@ html_theme_options = {
     "sidebar_hide_name": False,
 }
 
-autodoc_default_options = {
-    "members": True,
-    "undoc-members": False,
-    "show-inheritance": True,
-    "special-members": "__init__",
-}
+autodoc_default_options = {}
 
 napoleon_numpy_docstring = True
 napoleon_google_docstring = False

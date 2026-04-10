@@ -130,7 +130,7 @@ def compute_srs_time(
     Notes
     -----
     This wrapper uses the dedicated recursive shock engine implemented in
-    :mod:`fdscore._shock_iir`.
+    ``fdscore._shock_iir``.
 
     The returned spectrum is tagged with
     ``ers_kind="shock_response_spectrum"`` so that downstream envelope
@@ -253,7 +253,7 @@ def compute_pvss_time(
     Notes
     -----
     This wrapper uses the dedicated recursive shock engine implemented in
-    :mod:`fdscore._shock_iir`.
+    ``fdscore._shock_iir``.
 
     The returned spectrum is tagged with
     ``ers_kind="pseudo_velocity_shock_spectrum"`` so that downstream
