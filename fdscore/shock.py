@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from ._shock_iir import _shock_response_spectrum_iir
+from ._shock_signal import preprocess_shock_signal
 from .grid import build_frequency_grid
 from .types import ERSResult, SDOFParams, ShockSpectrumPair
 from .validate import (
@@ -12,25 +13,6 @@ from .validate import (
     ers_compat_dict,
     validate_sdof,
 )
-
-
-def _preprocess_shock_signal(x: np.ndarray, *, detrend: str) -> np.ndarray:
-    y = np.asarray(x, dtype=float).copy()
-
-    if detrend == "linear":
-        n = y.size
-        if n > 1:
-            t = np.arange(n, dtype=float)
-            p = np.polyfit(t, y, 1)
-            y -= p[0] * t + p[1]
-    elif detrend == "mean":
-        y -= float(np.mean(y))
-    elif detrend == "median":
-        y -= float(np.median(y))
-    elif detrend != "none":
-        raise ValidationError("detrend must be one of: 'linear', 'mean', 'median', 'none'.")
-
-    return y
 
 
 def _validate_shock_wrapper_inputs(
@@ -61,7 +43,7 @@ def _validate_shock_wrapper_inputs(
     f0 = build_frequency_grid(sdof)
     zeta = 1.0 / (2.0 * float(sdof.q))
 
-    _preprocess_shock_signal(np.zeros(4, dtype=float), detrend=detrend)
+    preprocess_shock_signal(np.zeros(4, dtype=float), detrend=detrend)
     return x, f0, zeta, fs
 
 
@@ -126,7 +108,7 @@ def compute_srs_time(
         peak_mode=peak_mode,
     )
     f0, nyquist_info = _validate_nyquist_with_info(f0, fs=fs, strict=strict_nyquist)
-    y = _preprocess_shock_signal(x, detrend=detrend)
+    y = preprocess_shock_signal(x, detrend=detrend)
 
     response = _shock_response_spectrum_iir(
         y,
@@ -220,7 +202,7 @@ def compute_pvss_time(
         peak_mode=peak_mode,
     )
     f0, nyquist_info = _validate_nyquist_with_info(f0, fs=fs, strict=strict_nyquist)
-    y = _preprocess_shock_signal(x, detrend=detrend)
+    y = preprocess_shock_signal(x, detrend=detrend)
 
     response = _shock_response_spectrum_iir(
         y,

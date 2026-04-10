@@ -5,7 +5,7 @@ import math
 import numpy as np
 from scipy.signal import find_peaks
 
-from .shock import _preprocess_shock_signal
+from ._shock_signal import preprocess_shock_signal
 from .types import ShockEvent, ShockEventSet
 from .validate import ValidationError
 
@@ -30,7 +30,7 @@ def _validate_event_detector_inputs(
     if not np.isfinite(fs) or float(fs) <= 0.0:
         raise ValidationError("fs must be finite and > 0.")
 
-    _preprocess_shock_signal(np.zeros(4, dtype=float), detrend=detrend)
+    preprocess_shock_signal(np.zeros(4, dtype=float), detrend=detrend)
 
     if polarity not in ("abs", "pos", "neg"):
         raise ValidationError("polarity must be one of: 'abs', 'pos', 'neg'.")
@@ -101,7 +101,7 @@ def detect_shock_events(
         window_s=window_s,
     )
 
-    y = _preprocess_shock_signal(x, detrend=detrend)
+    y = preprocess_shock_signal(x, detrend=detrend)
     if polarity == "abs":
         detector = np.abs(y)
     elif polarity == "pos":

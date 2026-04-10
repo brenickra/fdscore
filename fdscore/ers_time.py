@@ -4,6 +4,7 @@ import numpy as np
 
 from .types import SDOFParams, ERSResult, FDSTimePlan
 from .grid import build_frequency_grid
+from ._time_plan import validate_time_plan_compatibility
 from .validate import (
     ValidationError,
     _finite_positive_float_or_raise,
@@ -13,7 +14,6 @@ from .validate import (
 )
 from .preprocess import preprocess_signal
 from .sdof_transfer import build_transfer_matrix
-from .fds_time import _validate_plan_compatibility
 
 
 def _ers_from_signal_fft(
@@ -95,7 +95,7 @@ def compute_ers_time(
     if plan is None:
         H = build_transfer_matrix(fs=fs, n=int(y.size), f0_hz=f0, zeta=float(zeta), metric=sdof.metric)
     else:
-        H = _validate_plan_compatibility(
+        H = validate_time_plan_compatibility(
             plan=plan,
             fs=fs,
             n_samples=int(y.size),
