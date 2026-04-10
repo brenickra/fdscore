@@ -1,3 +1,11 @@
+"""Compatibility checks for reusable time-domain FDS transfer plans.
+
+This module validates whether a stored :class:`fdscore.types.FDSTimePlan`
+can be reused for a new call without rebuilding the FFT-domain transfer
+matrix. The checks cover sampling configuration, oscillator grid,
+damping, response metric, and transfer-matrix shape.
+"""
+
 from __future__ import annotations
 
 import numpy as np
@@ -15,6 +23,36 @@ def validate_time_plan_compatibility(
     zeta: float,
     metric: str,
 ) -> np.ndarray:
+    """Validate that an ``FDSTimePlan`` matches a requested time-domain setup.
+
+    Parameters
+    ----------
+    plan : FDSTimePlan
+        Precomputed transfer plan to validate.
+    fs : float
+        Sampling rate in Hz of the current signal.
+    n_samples : int
+        Number of samples in the current signal.
+    f0 : numpy.ndarray
+        Expected oscillator frequency grid in Hz after any Nyquist
+        validation or clipping.
+    zeta : float
+        Expected oscillator damping ratio.
+    metric : str
+        Expected SDOF response metric.
+
+    Returns
+    -------
+    numpy.ndarray
+        Validated transfer matrix ``H`` stored in the plan.
+
+    Notes
+    -----
+    Reusing a cached time-domain transfer plan is valid only when the new
+    call matches the original sampling and oscillator configuration. A
+    mismatch in frequency grid can occur, for example, when plan creation
+    and the current call use different Nyquist-clipping behavior.
+    """
     if not isinstance(plan, FDSTimePlan):
         raise ValidationError("plan must be an instance of FDSTimePlan.")
 
