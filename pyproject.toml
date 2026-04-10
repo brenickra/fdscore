@@ -44,7 +44,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["fdscore"]
+packages = ["fdscore", "examples"]
 
 
 

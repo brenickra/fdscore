@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          OUT_DIR="$RUNNER_TEMP/fdscore-dist"
+          rm -rf "$OUT_DIR"
+          mkdir -p "$OUT_DIR"
+          pushd "$RUNNER_TEMP" >/dev/null
+          python -m build "$GITHUB_WORKSPACE" --outdir "$OUT_DIR"
+          popd >/dev/null
+          rm -rf dist
+          mkdir -p dist
+          cp "$OUT_DIR"/* dist/
+      - name: Smoke test installed wheel examples
+        run: |
+          python -m venv "$RUNNER_TEMP/fdscore-release-venv"
+          source "$RUNNER_TEMP/fdscore-release-venv/bin/activate"
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          pushd "$RUNNER_TEMP" >/dev/null
+          python - <<'PY'
+          import fdscore
+          assert hasattr(fdscore, "compute_fds_time")
+          assert hasattr(fdscore, "compute_pvss_time")
+          print(fdscore.__file__)
+          PY
+          python -m examples.minimal_fds_time
+          python -m examples.minimal_inversion_and_metrics
+          popd >/dev/null
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fdscore-dist
+          path: dist/*
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
