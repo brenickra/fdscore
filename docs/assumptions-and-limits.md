@@ -32,6 +32,47 @@ negative PSD values raise `ValidationError`.
 `invert_fds_closed_form(...)` is implemented for `metric="pv"`. Other metrics
 should use the iterative inversion engines.
 
+## Closed-Form Inversion Assumptions
+
+The Henderson-Piersol closed-form route is derived under a specific set of
+assumptions that should be treated as part of the method, not as optional
+background context.
+
+The method assumes:
+
+- stationary Gaussian excitation;
+- a linear SDOF-dominated response;
+- light damping, typically `zeta < 0.1` or `Q > 5`;
+- an input PSD that is approximately flat over the oscillator half-power
+  bandwidth;
+- Rayleigh-distributed response peaks, as expected for narrowband Gaussian
+  response.
+
+For lightly damped systems this approximation is often useful and practical,
+but it is still an approximation. In particular, the classical simplification
+used in the closed-form derivation is tied to the light-damping regime.
+
+## Cross-Engine Methodological Asymmetry
+
+An important limitation is not numerical but methodological: different FDS
+engines do not embed the same physical assumptions.
+
+`compute_fds_time(...)` can preserve damage-relevant effects of the original
+signal that are not fully represented by a PSD alone, including
+non-stationarity, non-Rayleigh peak behavior, and temporal organization of
+cycles.
+
+If that richer time-domain FDS is then inverted with
+`invert_fds_closed_form(...)`, the result is an equivalent stationary Gaussian
+PSD that reproduces the same damage target under the closed-form assumptions.
+
+This crossed workflow is often useful in practice, but it should be understood
+as an engineering equivalence, not as a full reconstruction of the original
+signal statistics.
+
+For a more detailed decision framework, see
+[workflows/inversion.md](workflows/inversion.md).
+
 ## `FDSTimePlan` Memory Tradeoff
 
 `FDSTimePlan` stores the full complex FFT-domain transfer matrix `H`. This

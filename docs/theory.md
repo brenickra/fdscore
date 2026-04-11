@@ -91,6 +91,22 @@ input acceleration PSD
 under the assumptions of narrowband Gaussian response, stationarity, SDOF
 behavior, and light damping.
 
+Those assumptions are central to the interpretation of the inversion:
+
+- the excitation is treated as stationary Gaussian;
+- the response is modeled as linear and SDOF-dominated;
+- light damping is assumed, typically `zeta < 0.1`;
+- the response peaks follow the Rayleigh law associated with narrowband
+  Gaussian response;
+- the input PSD is treated as locally flat across the oscillator half-power
+  bandwidth.
+
+In practical terms, the closed-form route returns the PSD of an equivalent
+stationary Gaussian environment that would reproduce the same damage under
+those assumptions. This is especially important when the input FDS was
+originally computed from time-domain rainflow on a real signal rather than
+from a purely spectral Gaussian model.
+
 From there, the code defines the **Damage Potential (DP)** as
 
 ```{math}
@@ -126,3 +142,7 @@ match a target FDS:
 In both cases, the output remains a **one-sided acceleration PSD** defined on
 the user-provided `f_psd_hz` grid, while the returned metadata records the
 convergence history and the parameters effectively used by each engine.
+
+For a practical comparison of when the closed-form and iterative engines are
+methodologically aligned with the chosen FDS path, see
+[workflows/inversion.md](workflows/inversion.md).
