@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- Added an incremental ZOH-based engine for `compute_fds_time(...)` with online rainflow counting, adaptive upsampling near Nyquist, and sharply lower runtime/memory cost on long signals
+- Added explicit `engine`/`zoh_r_max` controls and provenance metadata for time-domain FDS, while preserving the legacy FFT path via `engine="fft"`
 - Aligned `detect_shock_events(...)` peak-threshold semantics with the selected detection polarity
 - Hardened `synthesize_time_from_psd(...)` negative-PSD handling and preserved singleton/edge FFT-bin energy during time synthesis
 - Recorded non-strict Nyquist clipping diagnostics in time-domain FDS/ERS/shock provenance and normalized more invalid validation inputs to `ValidationError`

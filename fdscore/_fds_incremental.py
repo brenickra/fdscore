@@ -1,4 +1,4 @@
-"""Incremental engine for time-domain FDS computation.
+r"""Incremental engine for time-domain FDS computation.
 
 This module implements the internal ``engine="incremental"`` path used by
 :func:`fdscore.fds_time.compute_fds_time`. Its purpose is to avoid the full

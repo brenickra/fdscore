@@ -19,8 +19,27 @@ def test_compute_fds_time_plan_matches_no_plan():
     sdof = SDOFParams(q=10.0, fmin=5.0, fmax=100.0, df=5.0, metric="pv")
 
     plan = prepare_fds_time_plan(fs=fs, n_samples=x.size, sdof=sdof)
-    fds_ref = compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, batch_size=16)
-    fds_plan = compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, batch_size=16, plan=plan)
+    fds_ref = compute_fds_time(
+        x,
+        fs,
+        sn=sn,
+        sdof=sdof,
+        detrend="none",
+        p_scale=6500.0,
+        batch_size=16,
+        engine="fft",
+    )
+    fds_plan = compute_fds_time(
+        x,
+        fs,
+        sn=sn,
+        sdof=sdof,
+        detrend="none",
+        p_scale=6500.0,
+        batch_size=16,
+        plan=plan,
+        engine="fft",
+    )
 
     assert np.allclose(fds_ref.f, fds_plan.f, rtol=0.0, atol=0.0)
     assert np.allclose(fds_ref.damage, fds_plan.damage, rtol=1e-12, atol=1e-15)
@@ -36,7 +55,16 @@ def test_compute_fds_time_plan_validation():
 
     plan_wrong_n = prepare_fds_time_plan(fs=fs, n_samples=x.size + 1, sdof=sdof)
     with pytest.raises(ValidationError):
-        compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan_wrong_n)
+        compute_fds_time(
+            x,
+            fs,
+            sn=sn,
+            sdof=sdof,
+            detrend="none",
+            p_scale=6500.0,
+            plan=plan_wrong_n,
+            engine="fft",
+        )
 
 def test_prepare_fds_time_plan_accepts_numpy_integer_scalars():
     fs = 1000.0
@@ -65,7 +93,16 @@ def test_compute_fds_time_plan_accepts_small_zeta_drift():
     plan = prepare_fds_time_plan(fs=fs, n_samples=x.size, sdof=sdof)
     object.__setattr__(plan, "zeta", float(plan.zeta) + 5e-13)
 
-    fds = compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
+    fds = compute_fds_time(
+        x,
+        fs,
+        sn=sn,
+        sdof=sdof,
+        detrend="none",
+        p_scale=6500.0,
+        plan=plan,
+        engine="fft",
+    )
 
     assert np.all(np.isfinite(fds.damage))
 
@@ -83,7 +120,16 @@ def test_compute_fds_time_plan_grid_mismatch_message_mentions_nyquist_clipping()
     object.__setattr__(plan, "H", np.asarray(plan.H[:-1], dtype=complex))
 
     with pytest.raises(ValidationError, match="strict_nyquist"):
-        compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
+        compute_fds_time(
+            x,
+            fs,
+            sn=sn,
+            sdof=sdof,
+            detrend="none",
+            p_scale=6500.0,
+            plan=plan,
+            engine="fft",
+        )
 
 
 def test_compute_fds_time_records_nyquist_clipping_in_provenance():
@@ -117,5 +163,14 @@ def test_compute_fds_time_plan_rejects_nonfinite_transfer_matrix():
     object.__setattr__(plan, "H", h_bad)
 
     with pytest.raises(ValidationError, match=r"FDSTimePlan\.H must contain only finite values"):
-        compute_fds_time(x, fs, sn=sn, sdof=sdof, detrend="none", p_scale=6500.0, plan=plan)
+        compute_fds_time(
+            x,
+            fs,
+            sn=sn,
+            sdof=sdof,
+            detrend="none",
+            p_scale=6500.0,
+            plan=plan,
+            engine="fft",
+        )
 
