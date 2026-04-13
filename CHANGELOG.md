@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added an incremental ZOH-based engine for `compute_ers_time(...)` with adaptive upsampling near Nyquist while preserving the legacy FFT path as the default
 - Added an incremental ZOH-based engine for `compute_fds_time(...)` with online rainflow counting, adaptive upsampling near Nyquist, and sharply lower runtime/memory cost on long signals
 - Added explicit `engine`/`zoh_r_max` controls and provenance metadata for time-domain FDS, while preserving the legacy FFT path via `engine="fft"`
 - Aligned `detect_shock_events(...)` peak-threshold semantics with the selected detection polarity
