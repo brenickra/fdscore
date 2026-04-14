@@ -69,7 +69,7 @@ def compute_ers_time(
     batch_size: int = 64,
     peak_mode: str = "abs",
     plan: FDSTimePlan | None = None,
-    engine: str = "fft",
+    engine: str = "incremental",
     zoh_r_max: float = 0.2,
 ) -> ERSResult:
     """Compute time-domain ERS by evaluating an SDOF bank on an input history.
@@ -99,12 +99,12 @@ def compute_ers_time(
     engine : {"fft", "incremental"}, optional
         Internal computation engine.
 
-        ``"fft"`` (default)
+        ``"fft"``
             Original FFT-domain engine. Applies the continuous SDOF
             transfer function to ``rfft(x)`` and reconstructs each
             oscillator response with ``irfft`` in batches.
 
-        ``"incremental"``
+        ``"incremental"`` (default)
             Sample-by-sample SDOF integration using exact ZOH state-
             transition matrices. Peaks are tracked online, so the full
             ``(n_osc, n_samples)`` response matrix is never materialized.

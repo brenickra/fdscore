@@ -50,8 +50,8 @@ def test_compute_ers_time_can_reuse_compatible_fds_time_plan():
     sdof = SDOFParams(q=12.0, metric="acc", fmin=10.0, fmax=90.0, df=10.0)
     plan = prepare_fds_time_plan(fs=512.0, n_samples=x.size, sdof=sdof)
 
-    ers_no_plan = compute_ers_time(x, 512.0, sdof, detrend="mean")
-    ers_plan = compute_ers_time(x, 512.0, sdof, detrend="mean", plan=plan)
+    ers_no_plan = compute_ers_time(x, 512.0, sdof, detrend="mean", engine="fft")
+    ers_plan = compute_ers_time(x, 512.0, sdof, detrend="mean", plan=plan, engine="fft")
 
     assert np.allclose(ers_no_plan.response, ers_plan.response)
     assert ers_plan.meta["provenance"]["transfer_plan"] is True
@@ -165,7 +165,7 @@ def test_compute_ers_time_rejects_nonfinite_reused_plan_matrix():
     object.__setattr__(plan, "H", h_bad)
 
     with pytest.raises(ValidationError, match=r"FDSTimePlan\.H must contain only finite values"):
-        compute_ers_time(x, 512.0, sdof, detrend="mean", plan=plan)
+        compute_ers_time(x, 512.0, sdof, detrend="mean", plan=plan, engine="fft")
 
 
 def test_envelope_ers_rejects_response_shape_broadcast():
