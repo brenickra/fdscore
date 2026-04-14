@@ -71,8 +71,6 @@ def test_iterative_time_reports_ignored_param_subset():
 
 
 def test_iterative_spectral_reports_full_param_usage():
-    pytest.importorskip("FLife")
-
     fs = 1000.0
     t = np.arange(0, 2.0, 1.0 / fs)
     x = 0.1 * np.sin(2 * np.pi * 30 * t) + 0.05 * np.sin(2 * np.pi * 80 * t)

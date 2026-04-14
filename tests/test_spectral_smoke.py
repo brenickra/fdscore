@@ -1,10 +1,8 @@
 import numpy as np
-import pytest
 
 from fdscore import SNParams, SDOFParams, PSDParams, compute_fds_spectral_time
 
 def test_spectral_smoke():
-    FLife = pytest.importorskip("FLife")
     fs = 1000.0
     t = np.arange(0, 2.0, 1.0/fs)
     x = 0.1*np.sin(2*np.pi*30*t) + 0.05*np.sin(2*np.pi*80*t)

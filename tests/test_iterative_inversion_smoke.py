@@ -13,8 +13,6 @@ from fdscore import (
 )
 
 def test_iterative_inversion_smoke():
-    pytest.importorskip("FLife")
-
     fs = 1000.0
     t = np.arange(0, 2.0, 1.0/fs)
     x = 0.1*np.sin(2*np.pi*30*t) + 0.05*np.sin(2*np.pi*80*t)
