@@ -119,6 +119,10 @@ These functions compute and combine generic extreme-response spectra.
 ```{eval-rst}
 .. autofunction:: compute_ers_time
 
+.. autofunction:: compute_ers_spectral_psd
+
+.. autofunction:: compute_ers_spectral_time
+
 .. autofunction:: envelope_ers
 ```
 

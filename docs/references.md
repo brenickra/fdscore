@@ -8,4 +8,5 @@
 - Dirlik, T. (1985). *Application of computers in fatigue analysis* (PhD thesis). University of Warwick.
 - ASTM International. (2017). *ASTM E1049-85R17: Standard Practices for Cycle Counting in Fatigue Analysis*. https://doi.org/10.1520/E1049-85R17
 - Davenport, A. G. (1964). *Note on the Distribution of the Largest Value of a Random Function with Application to Gust Loading*. *Proceedings of the Institution of Civil Engineers, 28*(2), 187-196. https://doi.org/10.1680/iicep.1964.10112
+- Lalanne, C. (2010). *Mechanical Vibration and Shock Analysis, Volume 3: Random Vibration*.
 - Lalanne, C. *Mechanical Vibration and Shock Analysis*, Vol. 5 (*Fatigue Damage*).

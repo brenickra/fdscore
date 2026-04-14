@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- Added `compute_ers_spectral_psd(...)` and `compute_ers_spectral_time(...)` for spectral/random ERS from one-sided acceleration PSDs, including automatic high-frequency edge correction for cropped spectra
 - Added an incremental ZOH-based engine for `compute_ers_time(...)` with adaptive upsampling near Nyquist, and made it the default while preserving `engine="fft"` as the legacy path
 - Added an incremental ZOH-based engine for `compute_fds_time(...)` with online rainflow counting, adaptive upsampling near Nyquist, and sharply lower runtime/memory cost on long signals
 - Added explicit `engine`/`zoh_r_max` controls and provenance metadata for time-domain FDS, while preserving the legacy FFT path via `engine="fft"`

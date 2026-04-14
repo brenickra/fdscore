@@ -43,6 +43,7 @@ from .deterministic import (
     compute_fds_sine_sweep,
 )
 from .ers_time import compute_ers_time
+from .ers_spectral import compute_ers_spectral_psd, compute_ers_spectral_time
 from .shock import compute_srs_time, compute_pvss_time
 from .shock_events import detect_shock_events
 from .shock_rolling import compute_rolling_srs_time, compute_rolling_pvss_time
@@ -79,6 +80,8 @@ __all__ = [
     "compute_fds_spectral_time",
     "compute_ers_sine",
     "compute_ers_time",
+    "compute_ers_spectral_psd",
+    "compute_ers_spectral_time",
     "compute_srs_time",
     "compute_pvss_time",
     "detect_shock_events",
