@@ -126,6 +126,17 @@ def test_compute_ers_spectral_psd_records_expected_metadata():
     assert compat["peak_mode"] == "expected_gaussian_max"
     assert compat["ers_kind"] == "random_extreme_response_spectrum"
     assert prov["peak_model"] == "gaussian_davenport"
+    assert prov["response_model"] == "exact_response_psd_moments"
     assert prov["edge_correction_mode"] == "auto_bandwidth_taper"
     assert prov["edge_bandwidth_scale"] == pytest.approx(2.0)
     assert prov["nyquist_hz"] == pytest.approx(500.0)
+
+
+def test_compute_ers_spectral_psd_records_acceleration_backbone():
+    f = np.arange(5.0, 405.0, 5.0)
+    p = 0.02 + 0.00002 * f
+    sdof = SDOFParams(q=10.0, metric="acc", fmin=5.0, fmax=400.0, df=5.0)
+
+    ers = compute_ers_spectral_psd(f, p, duration_s=60.0, sdof=sdof, nyquist_hz=500.0, edge_correction=True)
+
+    assert ers.meta["provenance"]["response_model"] == "lalanne_relative_displacement"
