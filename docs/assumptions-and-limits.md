@@ -21,6 +21,30 @@ guaranteed.
 estimates the PSD with Welch and only then applies Dirlik. Its result depends
 on both the PSD estimation settings and the spectral fatigue model.
 
+## Spectral Random ERS
+
+`compute_ers_spectral_psd(...)` and `compute_ers_spectral_time(...)` model the
+ERS as an expected extreme response of a stationary Gaussian process over a
+specified duration.
+
+This route assumes:
+
+- the PSD is an adequate descriptor of the environment;
+- the response process is sufficiently close to stationary Gaussian behavior;
+- the selected `duration_s` is physically meaningful for the expected maximum;
+- the PSD remains representative near the top of the oscillator grid.
+
+The spectral/random ERS is therefore not the same quantity as
+`compute_ers_time(...)`, which returns the maximum observed in a realized time
+history.
+
+When a PSD has been cropped below the original Nyquist limit, the top end of
+the oscillator grid can be biased low because the response moments lose part of
+the high-frequency tail. The spectral ERS APIs apply an automatic edge
+correction by default when `nyquist_hz` is known. This correction is intended
+to mitigate PSD-export truncation, not to extrapolate arbitrary unknown
+high-frequency physics.
+
 ## PSD Validity
 
 Explicit spectral PSD inputs are expected to be non-negative. Tiny negative
