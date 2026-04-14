@@ -36,8 +36,7 @@ fds_y = compute_fds_time(y, fs, sn=sn, sdof=sdof, plan=plan)
 
 ## Spectral FDS
 
-The spectral route uses Dirlik-based fatigue estimation through the optional
-`FLife` dependency.
+The spectral route uses an internal Dirlik-based fatigue estimator.
 
 ### From an explicit PSD
 

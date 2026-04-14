@@ -12,10 +12,10 @@ measured non-stationary vibration environments.
 
 ## Spectral Fatigue
 
-The spectral fatigue route uses Dirlik through `FLife`. This is a spectral
-approximation, not the same algorithm as time-domain rainflow counting on a
-realized signal. Absolute agreement between the two routes is therefore not
-guaranteed.
+The spectral fatigue route uses an internal Dirlik implementation. This is a
+spectral approximation, not the same algorithm as time-domain rainflow
+counting on a realized signal. Absolute agreement between the two routes is
+therefore not guaranteed.
 
 `compute_fds_spectral_time(...)` adds a second modeling layer because it first
 estimates the PSD with Welch and only then applies Dirlik. Its result depends

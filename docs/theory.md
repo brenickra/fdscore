@@ -60,7 +60,7 @@ and
 damage(f_0) = \frac{duration_s}{life(f_0)}
 ```
 
-where `life(f_0)` is obtained from `FLife.Dirlik`. The companion route
+where `life(f_0)` is obtained from the internal Dirlik implementation. The companion route
 `compute_fds_spectral_time(...)` first estimates the PSD with Welch
 (`compute_psd_welch(...)`) and then applies the same spectral fatigue
 evaluation.

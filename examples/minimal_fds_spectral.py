@@ -4,7 +4,6 @@ from fdscore import (
     PSDParams,
     SDOFParams,
     SNParams,
-    ValidationError,
     compute_fds_spectral_psd,
     compute_fds_spectral_time,
     synthesize_time_from_psd,
@@ -24,27 +23,21 @@ def main() -> None:
     f_psd, p_ref = build_example_psd(fs=fs, fmax_hz=300.0)
     x = synthesize_time_from_psd(f_psd_hz=f_psd, psd=p_ref, fs=fs, duration_s=duration_s, seed=42)
 
-    try:
-        fds_from_psd = compute_fds_spectral_psd(
-            f_psd_hz=f_psd,
-            psd_baseacc=p_ref,
-            duration_s=duration_s,
-            sn=sn,
-            sdof=sdof,
-        )
-        fds_from_time = compute_fds_spectral_time(
-            x,
-            fs,
-            sn=sn,
-            sdof=sdof,
-            psd=psd_params,
-            duration_s=duration_s,
-        )
-    except ValidationError as exc:
-        raise SystemExit(
-            "This example requires spectral support through FLife. "
-            "Install it with `pip install -e .[spectral]` and retry."
-        ) from exc
+    fds_from_psd = compute_fds_spectral_psd(
+        f_psd_hz=f_psd,
+        psd_baseacc=p_ref,
+        duration_s=duration_s,
+        sn=sn,
+        sdof=sdof,
+    )
+    fds_from_time = compute_fds_spectral_time(
+        x,
+        fs,
+        sn=sn,
+        sdof=sdof,
+        psd=psd_params,
+        duration_s=duration_s,
+    )
 
     err = median_abs_log10(fds_from_psd.damage, fds_from_time.damage)
 

@@ -27,13 +27,7 @@ This example shows:
 
 - spectral FDS from an explicit PSD;
 - spectral FDS from a synthesized time history;
-- the optional `spectral` dependency path.
-
-It requires:
-
-```bash
-pip install -e ".[spectral]"
-```
+- the built-in Dirlik spectral workflow.
 
 ### Minimal Inversion and Metrics
 
@@ -52,6 +46,5 @@ This example shows:
 
 - The examples use synthetic PSDs and time histories so they run without
   external data files.
-- The spectral example depends on `FLife`.
 - The inversion example uses the closed-form `pv` route because it is the most
   compact minimal workflow with no optional dependencies.
