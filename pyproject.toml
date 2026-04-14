@@ -33,9 +33,6 @@ Repository = "https://github.com/brenickra/fdscore"
 Issues = "https://github.com/brenickra/fdscore/issues"
 
 [project.optional-dependencies]
-spectral = [
-  "FLife"
-]
 dev = [
   "pytest>=7.0",
   "rainflow>=3.2",
