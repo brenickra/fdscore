@@ -42,6 +42,11 @@ The spectral route builds the response PSD of each oscillator, computes its
 response moments, estimates a Gaussian peak rate, and returns the expected
 maximum over `duration_s`.
 
+For `metric="acc"`, the current implementation uses a Lalanne-style
+relative-displacement/random-peak backbone internally because it better matches
+classical random-vibration acceleration ERS practice. Other metrics use exact
+response-PSD moments of the selected response quantity.
+
 ### Spectral convenience wrapper
 
 `compute_ers_spectral_time(...)` is a convenience wrapper for the same random
