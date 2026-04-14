@@ -100,7 +100,21 @@ def _rms_sum_lalanne(
     """Compute Lalanne RMS sums over a piecewise-constant PSD."""
     f0 = np.asarray(f0_hz, dtype=float).reshape(-1)
     f_psd = np.asarray(f_psd_hz, dtype=float).reshape(-1)
-    pyy = np.asarray(psd_baseacc, dtype=float).reshape(-1)
+    pyy = np.asarray(psd_baseacc, dtype=float)
+
+    if pyy.ndim == 1:
+        pyy_rows = pyy.reshape(1, -1)
+    elif pyy.ndim == 2:
+        pyy_rows = pyy
+    else:
+        raise ValidationError("psd_baseacc must be a 1D or 2D array aligned with f_psd_hz.")
+
+    if pyy_rows.shape[1] != f_psd.size:
+        raise ValidationError("psd_baseacc must be aligned with f_psd_hz.")
+    if pyy_rows.shape[0] not in (1, f0.size):
+        raise ValidationError(
+            "2D psd_baseacc inputs must have either one row or one row per oscillator in f0_hz."
+        )
 
     df = float(f_psd[1] - f_psd[0])
     f1 = f_psd - 0.5 * df
@@ -108,13 +122,11 @@ def _rms_sum_lalanne(
     f1[0] = f_psd[0]
     f2[-1] = f_psd[-1]
 
-    rms2 = np.zeros_like(f0)
     b = {"rel_disp": 0, "rel_vel": 2, "rel_acc": 4}[motion]
-    for j, psd_val in enumerate(pyy):
-        h1 = f1[j] / f0
-        h2 = f2[j] / f0
-        rms2 += float(psd_val) * (_integrals_b(h2, b, zeta) - _integrals_b(h1, b, zeta))
-    return rms2
+    h1 = f1[:, None] / f0[None, :]
+    h2 = f2[:, None] / f0[None, :]
+    delta = _integrals_b(h2, b, zeta) - _integrals_b(h1, b, zeta)
+    return np.sum(delta.T * pyy_rows, axis=1)
 
 
 def _expected_max_acc_lalanne(
@@ -338,25 +350,45 @@ def compute_ers_spectral_psd(
     corrected_count = 0
     if edge_correction and nyquist_val is not None and float(f_psd[-1]) < nyquist_val:
         corrected = response.copy()
-        for i, fn in enumerate(f0):
-            f_ext, P_ext = _extend_psd_high_edge_auto(
-                f_psd_hz=f_psd,
-                psd_baseacc=Pyy,
-                fn_hz=float(fn),
-                zeta=float(zeta),
-                nyquist_hz=float(nyquist_val),
-            )
-            if f_ext.size == f_psd.size:
-                continue
-            if sdof.metric == "acc":
-                corrected[i] = _expected_max_acc_lalanne(
-                    f_psd_hz=f_ext,
-                    psd_baseacc=P_ext,
-                    f0_hz=np.asarray([fn], dtype=float),
+        if sdof.metric == "acc":
+            grouped_ext: dict[int, list[tuple[int, np.ndarray]]] = {}
+            f_ext_by_group: dict[int, np.ndarray] = {}
+            for i, fn in enumerate(f0):
+                f_ext, P_ext = _extend_psd_high_edge_auto(
+                    f_psd_hz=f_psd,
+                    psd_baseacc=Pyy,
+                    fn_hz=float(fn),
+                    zeta=float(zeta),
+                    nyquist_hz=float(nyquist_val),
+                )
+                extra_count = int(f_ext.size - f_psd.size)
+                if extra_count <= 0:
+                    continue
+                grouped_ext.setdefault(extra_count, []).append((i, P_ext))
+                f_ext_by_group[extra_count] = f_ext
+
+            for extra_count, members in grouped_ext.items():
+                indices = np.asarray([idx for idx, _ in members], dtype=int)
+                p_matrix = np.vstack([p_ext for _, p_ext in members])
+                corrected[indices] = _expected_max_acc_lalanne(
+                    f_psd_hz=f_ext_by_group[extra_count],
+                    psd_baseacc=p_matrix,
+                    f0_hz=f0[indices],
                     zeta=zeta,
                     duration_s=duration_s,
-                )[0]
-            else:
+                )
+                corrected_count += int(indices.size)
+        else:
+            for i, fn in enumerate(f0):
+                f_ext, P_ext = _extend_psd_high_edge_auto(
+                    f_psd_hz=f_psd,
+                    psd_baseacc=Pyy,
+                    fn_hz=float(fn),
+                    zeta=float(zeta),
+                    nyquist_hz=float(nyquist_val),
+                )
+                if f_ext.size == f_psd.size:
+                    continue
                 H_ext = build_transfer_psd(
                     f_psd_hz=f_ext,
                     f0_hz=np.asarray([fn], dtype=float),
@@ -369,7 +401,7 @@ def compute_ers_spectral_psd(
                     response_psd=P_resp_ext,
                     duration_s=duration_s,
                 )[0]
-            corrected_count += 1
+                corrected_count += 1
         response = corrected
         edge_applied = corrected_count > 0
 
