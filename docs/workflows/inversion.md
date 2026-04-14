@@ -67,8 +67,8 @@ psd = invert_fds_iterative_spectral(
 )
 ```
 
-This route requires the optional spectral dependency because its predictor is
-built on `compute_fds_spectral_psd(...)`.
+This route uses the same internal Dirlik predictor as the standalone spectral
+FDS APIs.
 
 ## Iterative Time-Domain Inversion
 

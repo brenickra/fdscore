@@ -50,22 +50,7 @@ def test_compute_psd_welch_rejects_material_negative_output(monkeypatch):
 
 
 def test_compute_fds_spectral_psd_raises_validation_for_invalid_life(monkeypatch):
-    class DummySpectralData:
-        def __init__(self, input):
-            self.input = input
-
-    class DummyDirlik:
-        def __init__(self, sd):
-            self.sd = sd
-
-        def get_life(self, C, k):
-            return 0.0
-
-    class DummyFLife:
-        SpectralData = DummySpectralData
-        Dirlik = DummyDirlik
-
-    monkeypatch.setattr(spectral_mod, "_require_flife", lambda: DummyFLife)
+    monkeypatch.setattr(spectral_mod, "dirlik_life", lambda **kwargs: 0.0)
 
     f = np.linspace(1.0, 100.0, 100)
     psd = np.full_like(f, 1e-4)

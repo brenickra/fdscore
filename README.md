@@ -28,7 +28,7 @@ metrics, and explicit public result models intended for engineering use.
 
 - Time-domain FDS using FFT-domain SDOF response reconstruction with
   rainflow/Miner damage accumulation
-- Spectral FDS using Dirlik through the optional `FLife` dependency
+- Spectral FDS using an internal Dirlik implementation
 - Closed-form FDS-to-PSD inversion for pseudo-velocity (`pv`)
 - Iterative inversion with spectral and time-domain predictors
 - Deterministic sine, dwell-profile, and dwell-discretized sweep workflows
@@ -44,12 +44,6 @@ Install the core package from PyPI:
 
 ```bash
 pip install fdscore
-```
-
-Enable the spectral workflows as well:
-
-```bash
-pip install "fdscore[spectral]"
 ```
 
 For development:

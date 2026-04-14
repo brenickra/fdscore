@@ -8,17 +8,7 @@ from .validate import ValidationError, validate_sn, validate_sdof, compat_dict, 
 from .sdof_transfer import build_transfer_psd
 from .psd_welch import compute_psd_welch
 from ._psd_utils import clip_tiny_negative_psd_or_raise
-
-
-def _require_flife():
-    try:
-        import FLife  # type: ignore
-        return FLife
-    except Exception as e:  # pragma: no cover
-        raise ValidationError(
-            "Spectral FDS requires the external dependency 'FLife' (for Dirlik). "
-            "Install it in your environment, then retry."
-        ) from e
+from ._dirlik import dirlik_life
 
 
 def compute_fds_spectral_psd(
@@ -33,8 +23,8 @@ def compute_fds_spectral_psd(
     r"""Compute a spectral Fatigue Damage Spectrum from an acceleration PSD.
 
     This routine evaluates fatigue damage oscillator by oscillator using a
-    PSD-domain response model and Dirlik's spectral fatigue approximation as
-    implemented by ``FLife``.
+    PSD-domain response model and the library's internal Dirlik spectral
+    fatigue approximation.
 
     Pipeline
     --------
@@ -70,7 +60,6 @@ def compute_fds_spectral_psd(
         Additional scale factor applied to the response quantity before damage
         evaluation. This must match the fatigue convention used elsewhere in
         the workflow.
-
     Returns
     -------
     FDSResult
@@ -129,29 +118,28 @@ def compute_fds_spectral_psd(
     zeta = 1.0 / (2.0 * float(sdof.q))
     H = build_transfer_psd(f_psd_hz=f_psd, f0_hz=f0, zeta=zeta, metric=sdof.metric)
 
-    FLife = _require_flife()
     k = float(sn.slope_k)
     C = float(sn.C())
 
     dmg = np.zeros_like(f0, dtype=float)
     scale2 = float(p_scale_resolved) ** 2
 
-    # Loop: FLife Dirlik is object-based; vectorization brings little benefit here
     for i in range(f0.size):
         P_resp = scale2 * (np.abs(H[i]) ** 2) * Pyy
-        sd = FLife.SpectralData(input={"PSD": P_resp, "f": f_psd})
-        life = float(FLife.Dirlik(sd).get_life(C=C, k=k))
+        life = dirlik_life(f_hz=f_psd, psd=P_resp, C=C, k=k)
         if not np.isfinite(life) or life <= 0.0:
             raise ValidationError(
-                f"FLife returned invalid life for oscillator f0={float(f0[i])} Hz: {life}"
+                f"Internal Dirlik returned invalid life for oscillator f0={float(f0[i])} Hz: {life}"
             )
         dmg[i] = float(duration_s) / life
 
     meta = {
-        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, engine="spectral_dirlik_flife"),
+        "compat": compat_dict(sn=sn, metric=sdof.metric, q=sdof.q, p_scale=p_scale_resolved, engine="spectral_dirlik"),
         "provenance": {
             "source": "compute_fds_spectral_psd",
             "duration_s": float(duration_s),
+            "dirlik_engine": "internal",
+            "response_model": "dirlik_closed_form",
         },
     }
     return FDSResult(f=f0, damage=dmg, meta=meta)
@@ -191,7 +179,6 @@ def compute_fds_spectral_time(
     p_scale : float or None
         Optional scale factor applied to the response quantity before damage
         evaluation.
-
     Returns
     -------
     FDSResult
